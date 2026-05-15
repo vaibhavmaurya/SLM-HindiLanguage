@@ -42,6 +42,7 @@ class ManifestGenerator:
     ) -> dict:
         corpus_version = self._cfg.naming.corpus_version
         final_dir = self._data_root / "final"
+        final_dir.mkdir(parents=True, exist_ok=True)
         reports_dir = self._data_root / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
 

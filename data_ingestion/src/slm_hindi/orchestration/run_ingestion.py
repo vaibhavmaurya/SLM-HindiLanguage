@@ -49,8 +49,23 @@ def main(
 
     run_id = str(uuid.uuid4())
     data_root = Path(settings.project.data_root)
+
+    for _subdir in [
+        "raw/pdf",
+        "raw/huggingface",
+        "extracted/pdf",
+        "model_cleaned/pdf",
+        "normalized",
+        "filtered",
+        "deduplicated",
+        "final/parquet",
+        "final/training_jsonl",
+        "final/training_text",
+        "reports",
+    ]:
+        (data_root / _subdir).mkdir(parents=True, exist_ok=True)
+
     reports_dir = data_root / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
 
     run_logger = IngestionRunLogger(run_id, reports_dir / "pipeline_run_log.csv")
     file_registry = FileRegistry(run_id, reports_dir / "data_file_registry.csv")
@@ -112,6 +127,7 @@ def main(
             passed, quarantined = validator.validate_batch(cleaned, run_logger=run_logger)
             if quarantined:
                 quarantine_path = data_root / "model_cleaned" / "pdf" / "rejected_model_outputs.parquet"
+                quarantine_path.parent.mkdir(parents=True, exist_ok=True)
                 validator.save_quarantine(quarantined, quarantine_path)
                 file_registry.register_file(
                     quarantine_path, role="intermediate", stage="cleaning_validate",
