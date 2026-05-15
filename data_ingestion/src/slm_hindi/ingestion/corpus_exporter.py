@@ -7,7 +7,7 @@ import json
 import logging
 import math
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import pandas as pd
 import pyarrow as pa
@@ -36,6 +36,7 @@ class CorpusExporter:
         split_records: dict[str, list[CorpusRecord]],
         run_logger: IngestionRunLogger | None = None,
         file_registry: FileRegistry | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> None:
         corpus_version = self._cfg.naming.corpus_version
         if run_logger:
@@ -50,6 +51,8 @@ class CorpusExporter:
                 self._write_jsonl(records, split_name, corpus_version, file_registry)
             if self._cfg.exports.text.enabled:
                 self._write_text(records, split_name, corpus_version, file_registry)
+            if progress_callback:
+                progress_callback(len(records))
 
         if run_logger:
             run_logger.log_event(phase=_PHASE, component=_COMPONENT, status="completed")

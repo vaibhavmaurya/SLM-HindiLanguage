@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from slm_hindi.config.settings import SplitsConfig
 from slm_hindi.schema.corpus_record import CorpusRecord
@@ -26,6 +26,7 @@ class CorpusSplitter:
         self,
         records: list[CorpusRecord],
         run_logger: IngestionRunLogger | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> dict[str, list[CorpusRecord]]:
         if run_logger:
             run_logger.log_event(
@@ -60,6 +61,9 @@ class CorpusSplitter:
             for record in doc_records:
                 record.split_name = split_name  # type: ignore[assignment]
             splits[split_name].extend(doc_records)
+
+        if progress_callback:
+            progress_callback(len(doc_records))
 
         logger.info(
             "Split: train=%d val=%d test=%d records",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from slm_hindi.config.settings import QualityFilterConfig
 
@@ -63,6 +63,7 @@ class TextNormalizer:
         self,
         records: list,  # list[CorpusRecord] — avoid circular import
         run_logger: IngestionRunLogger | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> list:
         from slm_hindi.schema.corpus_record import CorpusRecord  # noqa: PLC0415
 
@@ -77,6 +78,8 @@ class TextNormalizer:
             record.char_count = len(record.final_text)
             record.word_count = len(record.final_text.split())
             record.estimated_token_count = max(1, int(record.char_count / 4.5))
+            if progress_callback:
+                progress_callback(1)
 
         if run_logger:
             run_logger.log_event(

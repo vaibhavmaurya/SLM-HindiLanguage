@@ -25,24 +25,24 @@ coverage.xml
 *.coveragerc
 
 # Data — never commit large corpora or intermediate files
-data/raw/huggingface/
-data/raw/pdf/*/original.pdf
-data/extracted/
-data/model_cleaned/
-data/normalized/
-data/filtered/
-data/deduplicated/
-data/final/
-data/reports/pipeline_run_log.csv
-data/reports/data_file_registry.csv
-data/reports/corpus_profile.json
-data/reports/quality_report.md
-data/reports/model_cleaning_report.csv
-data/reports/duplicate_report.csv
-data/reports/split_report.json
+data_ingestion/data/raw/huggingface/
+data_ingestion/data/raw/pdf/*/original.pdf
+data_ingestion/data/extracted/
+data_ingestion/data/model_cleaned/
+data_ingestion/data/normalized/
+data_ingestion/data/filtered/
+data_ingestion/data/deduplicated/
+data_ingestion/data/final/
+data_ingestion/data/reports/pipeline_run_log.csv
+data_ingestion/data/reports/data_file_registry.csv
+data_ingestion/data/reports/corpus_profile.json
+data_ingestion/data/reports/quality_report.md
+data_ingestion/data/reports/model_cleaning_report.csv
+data_ingestion/data/reports/duplicate_report.csv
+data_ingestion/data/reports/split_report.json
 
 # Keep sample fixture PDFs (small, for tests)
-!tests/fixtures/
+!data_ingestion/tests/fixtures/
 
 # IDE
 .vscode/

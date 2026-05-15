@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from slm_hindi.schema.corpus_record import CorpusRecord
 
@@ -42,6 +42,7 @@ class Deduplicator:
         self,
         records: list[CorpusRecord],
         run_logger: IngestionRunLogger | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> list[CorpusRecord]:
         if run_logger:
             run_logger.log_event(
@@ -53,6 +54,8 @@ class Deduplicator:
         # Pass 2: near-dedup by MinHash LSH
         records = self._near_dedup(records)
 
+        if progress_callback:
+            progress_callback(len(records))
         logger.info("After dedup: %d records remain", len(records))
         if run_logger:
             run_logger.log_event(

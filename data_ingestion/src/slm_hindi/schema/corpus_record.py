@@ -19,7 +19,7 @@ class CorpusRecord(BaseModel):
     document_id: str
     paragraph_id: str = ""
 
-    source_type: Literal["huggingface_dataset", "pdf"]
+    source_type: Literal["huggingface_dataset", "pdf", "wiki"]
     source_name: str
     source_dataset: str | None = None
     source_file_name: str | None = None

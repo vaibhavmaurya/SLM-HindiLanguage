@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from slm_hindi.config.settings import QualityFilterConfig
 from slm_hindi.schema.corpus_record import CorpusRecord
@@ -49,6 +49,7 @@ class QualityFilter:
         self,
         records: list[CorpusRecord],
         run_logger: IngestionRunLogger | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> tuple[list[CorpusRecord], list[CorpusRecord]]:
         if run_logger:
             run_logger.log_event(
@@ -64,6 +65,8 @@ class QualityFilter:
                 passed.append(record)
             else:
                 rejected.append(record)
+            if progress_callback:
+                progress_callback(1)
 
         logger.info("Quality filter: %d passed, %d rejected", len(passed), len(rejected))
         if run_logger:

@@ -1,0 +1,50 @@
+# wiki_crawl_config.yaml — Hindi Wikipedia crawl settings
+
+wiki_crawl:
+  # MediaWiki API base URL for Hindi Wikipedia
+  api_base_url: "https://hi.wikipedia.org/w/api.php"
+  wiki_base_url: "https://hi.wikipedia.org"
+  language: hi
+
+  # HTTP behaviour
+  user_agent: "Hindi-SLM-Corpus-Builder/1.0 (educational research; non-commercial)"
+  delay_seconds: 1.0              # Polite delay between API requests
+  request_timeout_seconds: 30
+  max_retries: 3
+  retry_backoff_base_seconds: 2
+  respect_robots: true
+
+  # Content extraction
+  extract_plain_text: true        # Use MediaWiki API explaintext=1
+  min_section_chars: 50           # Skip sections shorter than this
+  # Sections to exclude from corpus (navigation noise, not content)
+  exclude_sections:
+    - "सन्दर्भ"           # References
+    - "बाहरी कड़ियाँ"     # External links
+    - "इन्हें भी देखें"   # See also
+    - "टिप्पणियाँ"        # Notes
+    - "ग्रन्थसूची"        # Bibliography
+
+  # Link following
+  only_follow_wiki_links: true    # Never follow off-wiki URLs
+  # Wikipedia namespace prefixes to skip when following links
+  skip_namespaces:
+    - "Wikipedia"
+    - "Talk"
+    - "User"
+    - "Help"
+    - "File"
+    - "Template"
+    - "Category"
+    - "Special"
+    - "Portal"
+    - "Project"
+  # Optional regex: only follow links whose title matches this pattern (null = follow all)
+  link_include_pattern: null
+  # Optional regex: skip links whose title matches this pattern (null = skip none)
+  link_exclude_pattern: null
+
+  # Output storage
+  raw_output_dir: "data/raw/wiki"
+  # Save raw API responses for reproducibility (useful for debugging)
+  save_raw_responses: true

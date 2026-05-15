@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from slm_hindi.config.settings import SangrahaSourceConfig
 from slm_hindi.schema.corpus_record import CorpusRecord
@@ -28,6 +28,7 @@ class SangrahaLoader:
     def load(
         self,
         run_logger: IngestionRunLogger | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> list[CorpusRecord]:
         from datasets import load_dataset  # noqa: PLC0415  (lazy import — heavy dependency)
 
@@ -50,6 +51,8 @@ class SangrahaLoader:
                 break
             record = self._map_row(row, i)
             records.append(record)
+            if progress_callback:
+                progress_callback(1)
 
         logger.info("Loaded %d Sangraha records", len(records))
         if run_logger:

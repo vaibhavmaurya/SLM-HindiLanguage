@@ -26,9 +26,30 @@ class PdfSourceConfig(BaseModel):
     require_metadata_json: bool = True
 
 
+class WikiSeedConfig(BaseModel):
+    """A single Wikipedia article seed for the crawler."""
+
+    url: str
+    name: str
+    category: str = "general"
+    follow_links: bool = True
+    max_depth: int = 1
+    max_pages: int = 50
+    link_include_pattern: str | None = None
+    link_exclude_pattern: str | None = None
+
+
+class WikiSourceConfig(BaseModel):
+    """Collection of Wikipedia seed pages to crawl."""
+
+    enabled: bool = False
+    seeds: list[WikiSeedConfig] = Field(default_factory=list)
+
+
 class SourcesConfig(BaseModel):
     sangraha: SangrahaSourceConfig = Field(default_factory=SangrahaSourceConfig)
     pdf: PdfSourceConfig = Field(default_factory=PdfSourceConfig)
+    wiki: WikiSourceConfig = Field(default_factory=WikiSourceConfig)
 
 
 class ProjectConfig(BaseModel):
@@ -148,6 +169,33 @@ class ExportConfig(BaseModel):
     naming: NamingConfig = Field(default_factory=NamingConfig)
 
 
+class WikiCrawlConfig(BaseModel):
+    """Settings for the Wikipedia crawler (loaded from wiki_crawl_config.yaml)."""
+
+    api_base_url: str = "https://hi.wikipedia.org/w/api.php"
+    wiki_base_url: str = "https://hi.wikipedia.org"
+    language: str = "hi"
+    user_agent: str = "Hindi-SLM-Corpus-Builder/1.0 (educational research)"
+    delay_seconds: float = 1.0
+    request_timeout_seconds: int = 30
+    max_retries: int = 3
+    retry_backoff_base_seconds: int = 2
+    respect_robots: bool = True
+    extract_plain_text: bool = True
+    min_section_chars: int = 50
+    exclude_sections: list[str] = Field(
+        default_factory=lambda: ["सन्दर्भ", "बाहरी कड़ियाँ", "इन्हें भी देखें", "टिप्पणियाँ", "ग्रन्थसूची"]
+    )
+    only_follow_wiki_links: bool = True
+    skip_namespaces: list[str] = Field(
+        default_factory=lambda: ["Wikipedia", "Talk", "User", "Help", "File", "Template", "Category", "Special", "Portal", "Project"]
+    )
+    link_include_pattern: str | None = None
+    link_exclude_pattern: str | None = None
+    raw_output_dir: str = "data/raw/wiki"
+    save_raw_responses: bool = True
+
+
 class IngestionSettings(BaseSettings):
     """Top-level settings loaded from the master ingestion config YAML."""
 
@@ -162,6 +210,7 @@ class IngestionSettings(BaseSettings):
     model_cleaning: ModelCleaningConfig = Field(default_factory=ModelCleaningConfig)
     quality_filter: QualityFilterConfig = Field(default_factory=QualityFilterConfig)
     export: ExportConfig = Field(default_factory=ExportConfig)
+    wiki_crawl: WikiCrawlConfig = Field(default_factory=WikiCrawlConfig)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -181,6 +230,7 @@ def load_settings(config_path: str | Path) -> IngestionSettings:
         "model_cleaning": "model_cleaning_config.yaml",
         "quality_filter": "quality_filter_config.yaml",
         "export": "export_config.yaml",
+        "wiki_crawl": "wiki_crawl_config.yaml",
     }
 
     merged: dict[str, Any] = {**master}

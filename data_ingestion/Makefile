@@ -1,15 +1,13 @@
-.PHONY: test lint run run-dry clean install install-dev help
+.PHONY: test test-unit test-all test-int lint lint-fix run run-sangraha run-pdf run-wiki run-dry install install-dev clean help
 
 help:
-	@echo "Available targets:"
-	@echo "  install      Install production dependencies"
-	@echo "  install-dev  Install all dependencies including dev/test"
-	@echo "  test         Run all tests (excluding live Ollama)"
-	@echo "  test-all     Run all tests including Ollama-dependent ones"
-	@echo "  lint         Run ruff linter"
-	@echo "  run          Run full pipeline (sangraha + pdf)"
-	@echo "  run-dry      Dry run — validate config and paths only"
-	@echo "  clean        Remove pytest cache and coverage artifacts"
+	@echo "Hindi SLM — Data Ingestion"
+	@echo ""
+	@echo "Setup:    install | install-dev"
+	@echo "Tests:    test | test-unit | test-all | test-int"
+	@echo "Lint:     lint | lint-fix"
+	@echo "Pipeline: run | run-sangraha | run-pdf | run-wiki | run-dry"
+	@echo "Other:    clean"
 
 install:
 	pip install -r requirements.txt
@@ -33,7 +31,7 @@ test-unit:
 		--cov=src/slm_hindi \
 		--cov-report=term-missing
 
-test-integration:
+test-int:
 	pytest tests/integration/ -v -m "not requires_ollama"
 
 lint:
@@ -58,6 +56,11 @@ run-pdf:
 	python -m slm_hindi.orchestration.run_ingestion \
 		--config configs/ingestion_config.yaml \
 		--source pdf
+
+run-wiki:
+	python -m slm_hindi.orchestration.run_ingestion \
+		--config configs/ingestion_config.yaml \
+		--source wiki
 
 run-dry:
 	python -m slm_hindi.orchestration.run_ingestion \
