@@ -106,11 +106,11 @@ Every row in Parquet (and object in JSONL) conforms to the following schema. Def
 | `digit_ratio` | float | Fraction of digit characters |
 | `symbol_ratio` | float | Fraction of symbol characters |
 | `quality_score` | float | Composite quality score (0.0–1.0) |
-| `cleaning_method` | `"deterministic_normalization"` \| `"ollama_model_assisted"` \| `"none"` | How text was cleaned |
+| `cleaning_method` | `"deterministic_normalization"` \| `"ollama_model_assisted"` \| `"none"` | How text was cleaned (`"none"` for Sangraha — already verified) |
 | `cleaning_model` | str \| null | Ollama model name used (PDF only) |
 | `cleaning_model_version` | str \| null | Model version |
-| `cleaning_status` | `"pending"` \| `"clean"` \| `"quarantined"` \| `"skipped"` | Outcome of cleaning validation |
-| `dedup_hash` | str | SHA-256 of `final_text` (exact dedup key) |
+| `cleaning_status` | `"pending"` \| `"clean"` \| `"quarantined"` \| `"skipped"` | `"clean"` for Sangraha; set by validator for PDF |
+| `dedup_hash` | str | SHA-256 of `final_text`; computed at load time for Sangraha, by Deduplicator for PDF/Wiki |
 | `near_dedup_cluster_id` | str \| null | MinHash LSH cluster ID |
 | `split_name` | `"train"` \| `"validation"` \| `"test"` \| null | Corpus split assignment |
 | `created_at` | str | ISO-8601 UTC timestamp of record creation |
@@ -201,13 +201,20 @@ dataset = load_dataset(
 
 ## 5. Filtering and Subsetting
 
-All quality metadata is available for filtering at load time:
+All quality metadata is available for filtering at load time.
+
+**Note on per-source cleaning:** Sangraha records bypass the quality filter and deduplication stages in the pipeline — they are pre-verified by AI4Bharat. Their `devanagari_ratio`, `quality_score`, and related fields default to `0.0` because those metrics are only computed during the quality filter stage. Filter on `word_count` and `char_count` instead for Sangraha.
 
 ```python
-# Only high-quality Sangraha records with >200 words
-filtered = train_df[
+# Only Sangraha records with >200 words
+sangraha_long = train_df[
     (train_df["source_type"] == "huggingface_dataset") &
-    (train_df["word_count"] >= 200) &
+    (train_df["word_count"] >= 200)
+]
+
+# Only PDF/Wiki records that passed quality filtering (devanagari_ratio is populated)
+pdf_wiki_quality = train_df[
+    (train_df["source_type"] != "huggingface_dataset") &
     (train_df["devanagari_ratio"] >= 0.7)
 ]
 

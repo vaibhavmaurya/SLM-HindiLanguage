@@ -7,7 +7,7 @@
 
 Each phase ends with `pytest tests/unit/test_<module>.py -v --cov=src/slm_hindi` — all tests must pass before proceeding.
 
-**Status as of 2026-05-15:** All 10 phases complete. 131 tests passing. 83% coverage. Pipeline executed successfully against live data.
+**Status as of 2026-05-15:** All 11 phases complete. 139 tests passing. 83% coverage. Pipeline executed successfully against live data.
 
 ---
 
@@ -214,14 +214,43 @@ Each phase ends with `pytest tests/unit/test_<module>.py -v --cov=src/slm_hindi`
 
 ---
 
+---
+
+## Phase 11 — Pipeline Source-Track Refinements ✅
+
+**Goal:** Sangraha bypasses all cleaning stages (it is pre-verified by AI4Bharat). Wiki gets the normalization step it was missing. `setup_and_run.bat` provides a one-step setup + run script for Windows. Directory creation is guaranteed at pipeline startup.
+
+**Acceptance Criteria:**
+- Sangraha records skip TextNormalizer, QualityFilter, and Deduplicator
+- Sangraha records have `cleaning_method="none"`, `cleaning_status="clean"`, and `dedup_hash` pre-computed at load time
+- Wiki records pass through TextNormalizer before QualityFilter (was previously missing)
+- All `data/` subdirectories created at pipeline startup if they do not exist
+- `setup_and_run.bat` runs full setup (venv, pip, editable install) then launches the pipeline
+- 139 tests pass
+
+### Tasks
+
+- [x] 11.1 `sangraha_loader.py`: set `cleaning_method="none"`, `cleaning_status="clean"`, compute `dedup_hash` (SHA-256) at load time
+- [x] 11.2 `run_ingestion.py`: restructure into two tracks — Sangraha (load only) and PDF+Wiki (normalize → filter → dedup)
+- [x] 11.3 `run_ingestion.py`: add normalization step for Wiki records (was missing)
+- [x] 11.4 `run_ingestion.py`: add up-front creation of all 11 standard `data/` subdirectories
+- [x] 11.5 `run_ingestion.py`: add `quarantine_path.parent.mkdir()` before saving rejected PDF records
+- [x] 11.6 `manifest_generator.py`: guard `final_dir` with `mkdir` before `rglob`
+- [x] 11.7 `setup_and_run.bat`: full Windows setup + pipeline runner (venv, pip, editable install, import verify, run)
+- [x] 11.8 Update `test_sangraha_loader.py`: rename cleaning_method test; add tests for `cleaning_status="clean"` and `dedup_hash` populated
+- [x] 11.9 Verify: 139 tests pass
+
+---
+
 ## Completion Checklist ✅
 
-- [x] All unit tests pass: `pytest tests/unit/ -v` (131 tests)
+- [x] All unit tests pass: `pytest tests/unit/ -v` (139 tests)
 - [x] All integration tests pass (Ollama mocked): `pytest tests/integration/ -v -m "not requires_ollama"`
 - [x] Coverage ≥ 80%: 83% achieved
 - [x] Linting clean: `make lint`
-- [x] `DevelopmentPlan.md` up to date (v2.0)
+- [x] `DevelopmentPlan.md` up to date (v2.1)
 - [x] `CORPUS_HANDOFF.md` created at monorepo root
 - [x] `pipeline_run_log.csv` and `data_file_registry.csv` generated during live pipeline run
 - [x] Pipeline successfully ingesting live Sangraha data (17.4M records downloaded)
+- [x] `setup_and_run.bat` created for one-step Windows setup and pipeline execution
 - [ ] `data/final/` output loadable via `datasets.load_dataset("parquet", data_files=...)` — pending pipeline completion

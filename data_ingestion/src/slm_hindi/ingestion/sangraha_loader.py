@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -81,9 +82,10 @@ class SangrahaLoader:
             char_count=len(text),
             word_count=len(text.split()),
             estimated_token_count=max(1, int(len(text) / 4.5)),
-            cleaning_method="deterministic_normalization",
+            cleaning_method="none",
             cleaning_model=None,
-            cleaning_status="pending",
+            cleaning_status="clean",
+            dedup_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
             ingestion_run_id=self._run_id,
             created_at=datetime.now(timezone.utc).isoformat(),
         )

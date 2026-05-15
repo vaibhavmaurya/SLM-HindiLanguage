@@ -1,7 +1,7 @@
 # Development Plan — Hindi SLM Data Ingestion
 
 **Project:** Hindi Small Language Model — Data Ingestion Workstream  
-**Version:** 2.0  
+**Version:** 2.1  
 **Date:** 2026-05-15  
 **Status:** Implementation Complete — Pipeline Running
 
@@ -21,6 +21,8 @@ The corpus output contract for downstream phases is documented in `../CORPUS_HAN
 
 ### 2.1 High-Level Pipeline
 
+Sangraha is pre-verified and pre-deduplicated by AI4Bharat, so it bypasses normalization, quality filtering, and deduplication entirely. PDF and Wiki records go through all cleaning stages before being merged with Sangraha for the final split and export.
+
 ```
 ┌──────────────────────┐   ┌──────────────────────────┐   ┌────────────────────────┐
 │  AI4Bharat Sangraha  │   │   User-Provided PDFs      │   │  Hindi Wikipedia        │
@@ -31,11 +33,11 @@ The corpus output contract for downstream phases is documented in `../CORPUS_HAN
   ┌─────────────────┐      ┌──────────────────────┐       ┌────────────────────────┐
   │ SangrahaLoader  │      │ PDF Registry         │       │ WikiCrawler             │
   │ (HF datasets)   │      │ (validate + register)│       │ BFS, depth+page limits  │
-  └────────┬────────┘      └──────────┬───────────┘       └───────────┬────────────┘
-           │                          │                                 │
-           │                          ▼                                 │
+  │ dedup_hash set  │      └──────────┬───────────┘       └───────────┬────────────┘
+  │ at load time    │                 │                                 │
+  └────────┬────────┘                 ▼                                 │
            │               ┌──────────────────────┐                    │
-           │               │ PDF Text Extractor   │                    │
+           │  (bypass)     │ PDF Text Extractor   │                    │
            │               │ PyMuPDF / pdfplumber │                    │
            │               └──────────┬───────────┘                    │
            │                          │                                 │
@@ -51,43 +53,43 @@ The corpus output contract for downstream phases is documented in `../CORPUS_HAN
            │               │ (7 checks)           │                    │
            │               └──────────┬───────────┘                    │
            │                          │                                 │
-           └──────────────────────────┴─────────────────────────────── ┘
-                                      │
-                                      ▼
-                           ┌────────────────────┐
-                           │ Text Normalizer    │
-                           │ Unicode + WS + ।  │
-                           └────────┬───────────┘
-                                    │
-                                    ▼
-                           ┌────────────────────┐
-                           │ Quality Filter     │
-                           │ Hindi ratio, len   │
-                           └────────┬───────────┘
-                                    │
-                                    ▼
-                           ┌────────────────────┐
-                           │ Deduplicator       │
-                           │ SHA-256 + MinHash  │
-                           └────────┬───────────┘
-                                    │
-                                    ▼
-                           ┌────────────────────┐
-                           │ Corpus Splitter    │
-                           │ 98/1/1 doc-level   │
-                           └────────┬───────────┘
-                                    │
-                                    ▼
-                           ┌────────────────────────────────────┐
-                           │ Corpus Exporter                    │
-                           │ Parquet (zstd) + JSONL.gz + TXT.gz │
-                           └────────┬───────────────────────────┘
-                                    │
-                                    ▼
-                           ┌────────────────────┐
-                           │ Manifest Generator │
-                           │ SHA-256 + profile  │
-                           └────────────────────┘
+           │                          ▼                                 ▼
+           │               ┌─────────────────────────────────────────────┐
+           │               │ Text Normalizer  (PDF + Wiki only)           │
+           │               │ Unicode NFC + whitespace + danda             │
+           │               └──────────────────────┬──────────────────────┘
+           │                                       │
+           │                                       ▼
+           │               ┌─────────────────────────────────────────────┐
+           │               │ Quality Filter  (PDF + Wiki only)            │
+           │               │ Hindi ratio + length thresholds              │
+           │               └──────────────────────┬──────────────────────┘
+           │                                       │
+           │                                       ▼
+           │               ┌─────────────────────────────────────────────┐
+           │               │ Deduplicator  (PDF + Wiki only)              │
+           │               │ SHA-256 exact + MinHash LSH near-dedup       │
+           │               └──────────────────────┬──────────────────────┘
+           │                                       │
+           └───────────────────────┬───────────────┘
+                                   │  merge
+                                   ▼
+                          ┌────────────────────┐
+                          │ Corpus Splitter    │
+                          │ 98/1/1 doc-level   │
+                          └────────┬───────────┘
+                                   │
+                                   ▼
+                          ┌────────────────────────────────────┐
+                          │ Corpus Exporter                    │
+                          │ Parquet (zstd) + JSONL.gz + TXT.gz │
+                          └────────┬───────────────────────────┘
+                                   │
+                                   ▼
+                          ┌────────────────────┐
+                          │ Manifest Generator │
+                          │ SHA-256 + profile  │
+                          └────────────────────┘
 ```
 
 ### 2.2 Observability Cross-Cut
@@ -321,7 +323,7 @@ SLM_HINDI/
 | `schema/corpus_record.py` | `CorpusRecord` | Unified 30-field pydantic model for all sources |
 | `observability/run_logger.py` | `IngestionRunLogger` | Append activity events to `pipeline_run_log.csv` |
 | `observability/file_registry.py` | `FileRegistry` | Append file metadata + SHA-256 to `data_file_registry.csv` |
-| `ingestion/sangraha_loader.py` | `SangrahaLoader` | Load HuggingFace dataset, map to `CorpusRecord` |
+| `ingestion/sangraha_loader.py` | `SangrahaLoader` | Load HuggingFace dataset, map to `CorpusRecord`; sets `dedup_hash`, `cleaning_status="clean"`, `cleaning_method="none"` at load time — no further cleaning applied |
 | `ingestion/pdf_registry.py` | `PdfRegistry` | Discover and validate PDF folders + `metadata.json` |
 | `ingestion/pdf_extractor.py` | `PdfExtractor` | Extract text per-page via PyMuPDF / pdfplumber |
 | `ingestion/ollama_cleaner.py` | `OllamaCleaner` | Chunk text, call Ollama REST, reassemble output |
@@ -489,7 +491,7 @@ Both files accumulate across all pipeline runs — never truncated.
 
 ### 10.3 Coverage
 
-**131 tests, ≥ 83% coverage** as of implementation completion. Run with:
+**139 tests, ≥ 83% coverage** as of implementation completion. Run with:
 
 ```bash
 ./run_tests.sh                  # Linux/macOS
@@ -513,6 +515,7 @@ pytest tests/ -v -m "not requires_ollama" --cov=src/slm_hindi
 | **8** | Corpus exporter + manifest + orchestration CLI | ✅ Complete |
 | **9** | Wikipedia crawler (BFS, MediaWiki API) | ✅ Complete |
 | **10** | Rich terminal UI + progress bars + monorepo reorganization | ✅ Complete |
+| **11** | Pipeline source-track refinements + setup_and_run.bat | ✅ Complete |
 
 ---
 

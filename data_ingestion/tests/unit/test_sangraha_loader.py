@@ -55,12 +55,28 @@ def test_source_type_is_huggingface_dataset():
     assert all(r.source_type == "huggingface_dataset" for r in records)
 
 
-def test_cleaning_method_is_deterministic_normalization():
+def test_cleaning_method_is_none():
     sample_rows = _load_sample_rows()
     loader = SangrahaLoader(_make_config())
     with patch("datasets.load_dataset", return_value=sample_rows):
         records = loader.load()
-    assert all(r.cleaning_method == "deterministic_normalization" for r in records)
+    assert all(r.cleaning_method == "none" for r in records)
+
+
+def test_cleaning_status_is_clean():
+    sample_rows = _load_sample_rows()
+    loader = SangrahaLoader(_make_config())
+    with patch("datasets.load_dataset", return_value=sample_rows):
+        records = loader.load()
+    assert all(r.cleaning_status == "clean" for r in records)
+
+
+def test_dedup_hash_is_populated():
+    sample_rows = _load_sample_rows()
+    loader = SangrahaLoader(_make_config())
+    with patch("datasets.load_dataset", return_value=sample_rows):
+        records = loader.load()
+    assert all(len(r.dedup_hash) == 64 for r in records)
 
 
 def test_cleaning_model_is_none():

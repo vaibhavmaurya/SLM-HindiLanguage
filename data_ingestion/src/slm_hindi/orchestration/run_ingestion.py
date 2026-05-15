@@ -82,9 +82,13 @@ def main(
         run_logger.log_event(phase="dry_run", component="run_ingestion", status="completed", notes="dry_run=True")
         return
 
-    all_records: list = []
+    # Sangraha is pre-verified and pre-filtered by AI4Bharat — collected separately
+    # and merged after quality filtering so its records are never rejected.
+    sangraha_records: list = []
+    # PDF and Wiki records need normalization + quality filtering.
+    unfiltered_records: list = []
 
-    # --- Sangraha source ---
+    # --- Sangraha source (load only — no normalize, no quality filter) ---
     if source in ("sangraha", "all") and settings.sources.sangraha.enabled:
         log.info("Loading Sangraha dataset…")
         with make_progress() as progress:
@@ -94,18 +98,10 @@ def main(
                 run_logger=run_logger,
                 progress_callback=lambda n: progress.advance(task, n),
             )
+        sangraha_records.extend(records)
+        console.print(f"  Sangraha: [green]{len(records)} records loaded[/green] (skipping normalize + quality filter)")
 
-        with make_progress() as progress:
-            task = progress.add_task("[cyan]Normalize (Sangraha)", total=len(records))
-            normalizer = TextNormalizer(settings.quality_filter)
-            records = normalizer.normalize_records(
-                records,
-                run_logger=run_logger,
-                progress_callback=lambda n: progress.advance(task, n),
-            )
-        all_records.extend(records)
-
-    # --- PDF source ---
+    # --- PDF source (Ollama clean → normalize → quality filter) ---
     if source in ("pdf", "all") and settings.sources.pdf.enabled:
         registry = PdfRegistry(settings.sources.pdf.input_dir, settings.sources.pdf.require_metadata_json)
         pdf_sources = registry.discover()
@@ -142,9 +138,9 @@ def main(
                     run_logger=run_logger,
                     progress_callback=lambda n: progress.advance(task, n),
                 )
-            all_records.extend(passed)
+            unfiltered_records.extend(passed)
 
-    # --- Wiki source ---
+    # --- Wiki source (normalize → quality filter) ---
     if source in ("wiki", "all") and settings.sources.wiki.enabled:
         seeds = settings.sources.wiki.seeds
         log.info("Crawling %d Wikipedia seed(s)…", len(seeds))
@@ -160,33 +156,55 @@ def main(
                     file_registry=file_registry,
                     progress_callback=lambda n: progress.advance(task, n),
                 )
-            all_records.extend(wiki_records)
-            console.print(f"  [green]✓[/green] {seed.name}: {len(wiki_records)} records")
+            console.print(f"  [green]✓[/green] {seed.name}: {len(wiki_records)} records crawled")
 
-    if not all_records:
+            with make_progress() as progress:
+                task = progress.add_task(f"[cyan]Normalize Wiki ({seed.name})", total=len(wiki_records))
+                normalizer = TextNormalizer(settings.quality_filter)
+                wiki_records = normalizer.normalize_records(
+                    wiki_records,
+                    run_logger=run_logger,
+                    progress_callback=lambda n: progress.advance(task, n),
+                )
+            unfiltered_records.extend(wiki_records)
+
+    if not sangraha_records and not unfiltered_records:
         console.print("[yellow]No records ingested — nothing to export.[/yellow]")
         return
 
-    # --- Shared stages ---
-    with make_progress() as progress:
-        task = progress.add_task("[cyan]Quality filter", total=len(all_records))
-        quality_filter = QualityFilter(settings.quality_filter)
-        all_records, rejected = quality_filter.filter(
-            all_records,
-            run_logger=run_logger,
-            progress_callback=lambda n: progress.advance(task, n),
+    # --- Quality filter (PDF + Wiki only) ---
+    filtered_records: list = []
+    if unfiltered_records:
+        with make_progress() as progress:
+            task = progress.add_task("[cyan]Quality filter (PDF + Wiki)", total=len(unfiltered_records))
+            quality_filter = QualityFilter(settings.quality_filter)
+            filtered_records, rejected = quality_filter.filter(
+                unfiltered_records,
+                run_logger=run_logger,
+                progress_callback=lambda n: progress.advance(task, n),
+            )
+        console.print(
+            f"  Quality filter: [green]{len(filtered_records)} passed[/green], "
+            f"[red]{len(rejected)} rejected[/red]  (Sangraha bypassed)"
         )
-    console.print(f"  Quality filter: [green]{len(all_records)} passed[/green], [red]{len(rejected)} rejected[/red]")
 
-    with make_progress() as progress:
-        task = progress.add_task("[cyan]Deduplication", total=len(all_records))
-        deduplicator = Deduplicator()
-        all_records = deduplicator.deduplicate(
-            all_records,
-            run_logger=run_logger,
-            progress_callback=lambda n: progress.advance(task, n),
-        )
-    console.print(f"  After dedup: [green]{len(all_records)} records[/green]")
+    # Dedup only PDF + Wiki (Sangraha is pre-deduplicated by AI4Bharat)
+    if filtered_records:
+        with make_progress() as progress:
+            task = progress.add_task("[cyan]Deduplication (PDF + Wiki)", total=len(filtered_records))
+            deduplicator = Deduplicator()
+            filtered_records = deduplicator.deduplicate(
+                filtered_records,
+                run_logger=run_logger,
+                progress_callback=lambda n: progress.advance(task, n),
+            )
+        console.print(f"  After dedup (PDF/Wiki): [green]{len(filtered_records)} records[/green]")
+
+    all_records = sangraha_records + filtered_records
+    console.print(
+        f"  Total records: [bold]{len(all_records)}[/bold] "
+        f"(Sangraha {len(sangraha_records)} + PDF/Wiki {len(filtered_records)})"
+    )
 
     with make_progress() as progress:
         task = progress.add_task("[cyan]Corpus split", total=len(all_records))

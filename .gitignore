@@ -16,6 +16,11 @@ build/
 venv/
 env/
 .env
+pyvenv.cfg
+# Bare venv components if accidentally created in project root
+Lib/
+Scripts/
+Include/
 
 # Testing
 .pytest_cache/
