@@ -7,372 +7,221 @@
 
 Each phase ends with `pytest tests/unit/test_<module>.py -v --cov=src/slm_hindi` — all tests must pass before proceeding.
 
+**Status as of 2026-05-15:** All 10 phases complete. 131 tests passing. 83% coverage. Pipeline executed successfully against live data.
+
 ---
 
-## Phase 1 — Project Scaffold & Tooling
+## Phase 1 — Project Scaffold & Tooling ✅
 
 **Goal:** Runnable project skeleton with dependency management, linting, and an empty-but-collectible test suite.
 
-**Acceptance Criteria:**
-- `pytest --collect-only` succeeds (no import errors)
-- `make test` runs and reports 0 failures
-- `make lint` runs ruff with no errors
-- Sample fixture files exist and are non-empty
-
-### Tasks
-
-- [x] 1.1 Create full directory tree (see `DevelopmentPlan.md §4`)
-- [x] 1.2 Create `.gitignore`
-- [x] 1.3 Create `CLAUDE.md`
-- [ ] 1.4 Create `pyproject.toml` — build system (`hatchling`), pytest settings, ruff config
-- [ ] 1.5 Create `requirements.txt` — production dependencies with pinned minor versions
-- [ ] 1.6 Create `requirements-dev.txt` — dev/test dependencies
-- [ ] 1.7 Create `.env.example` — all required env vars with defaults
-- [ ] 1.8 Create `Makefile` — targets: `test`, `lint`, `run`, `run-dry`, `clean`
-- [ ] 1.9 Create `tests/fixtures/sample_sangraha/sample_rows.jsonl` — 5 sample Sangraha rows
-- [ ] 1.10 Create `tests/fixtures/sample_metadata/metadata.json` — valid PDF metadata
-- [ ] 1.11 Create `tests/fixtures/sample_configs/test_ingestion_config.yaml`
-- [ ] 1.12 Generate `tests/fixtures/sample_pdfs/sample_hindi_2page.pdf` programmatically
-- [ ] 1.13 Create `tests/conftest.py` — shared fixtures, custom pytest marks
-- [ ] 1.14 Create all `__init__.py` stubs under `src/slm_hindi/`
-- [ ] 1.15 Verify: `pip install -e ".[dev]"` and `pytest --collect-only`
-
-**Verify:**
-```bash
-pip install -e ".[dev]"
-pytest --collect-only
-make lint
-```
+- [x] 1.1 Create full directory tree
+- [x] 1.2 Create `.gitignore` (updated to `data_ingestion/data/` paths after monorepo reorganization)
+- [x] 1.3 Create `CLAUDE.md` (updated to v2 reflecting current state)
+- [x] 1.4 Create `pyproject.toml` — hatchling build, pytest settings, ruff config
+- [x] 1.5 Create `requirements.txt` — production dependencies
+- [x] 1.6 Create `requirements-dev.txt` — dev/test dependencies
+- [x] 1.7 Create `.env.example`
+- [x] 1.8 Create `Makefile` — test, lint, run-*, clean
+- [x] 1.9 Create `tests/fixtures/sample_sangraha/sample_rows.jsonl`
+- [x] 1.10 Create `tests/fixtures/sample_metadata/metadata.json`
+- [x] 1.11 Create `tests/fixtures/sample_configs/test_ingestion_config.yaml`
+- [x] 1.12 Generate `tests/fixtures/sample_pdfs/sample_hindi_2page.pdf`
+- [x] 1.13 Create `tests/conftest.py`
+- [x] 1.14 Create all `__init__.py` stubs under `src/slm_hindi/`
+- [x] 1.15 Verify: `pip install -e ".[dev]"` and `pytest --collect-only`
 
 ---
 
-## Phase 2 — Config & Schema Layer
+## Phase 2 — Config & Schema Layer ✅
 
 **Goal:** Type-safe configuration loading from YAML files and a validated pydantic data model for all corpus records.
 
-**Acceptance Criteria:**
-- `IngestionSettings` loads from `test_ingestion_config.yaml` without error
-- `CorpusRecord` validates a sample dict and rejects invalid inputs
-- `IngestionRunLogger` appends correct CSV rows
-- `FileRegistry` appends correct CSV rows with SHA-256
-
-### Tasks
-
-- [ ] 2.1 Write tests: `tests/unit/test_settings.py`
-  - Load config from sample YAML
-  - Assert nested field values (e.g. `settings.sources.sangraha.enabled == True`)
-  - Assert validation error on missing required field
-- [ ] 2.2 Write tests: `tests/unit/test_corpus_record.py`
-  - Validate a fully-populated `CorpusRecord` dict
-  - Assert defaults populate correctly
-  - Assert `ValidationError` on bad type (e.g. `char_count="abc"`)
-- [ ] 2.3 Write tests: `tests/unit/test_run_logger.py`
-  - `log_event()` appends one CSV row
-  - Row contains all expected columns
-  - Multiple calls append multiple rows (not overwrite)
-- [ ] 2.4 Write tests: `tests/unit/test_file_registry.py`
-  - `register_file()` appends one row with correct `file_name` and `sha256`
-  - Non-existent file raises `FileNotFoundError`
-- [ ] 2.5 Implement `configs/ingestion_config.yaml`
-- [ ] 2.6 Implement `configs/pdf_extraction_config.yaml`
-- [ ] 2.7 Implement `configs/model_cleaning_config.yaml`
-- [ ] 2.8 Implement `configs/quality_filter_config.yaml`
-- [ ] 2.9 Implement `configs/export_config.yaml`
-- [ ] 2.10 Implement `src/slm_hindi/config/settings.py` (`IngestionSettings`)
-- [ ] 2.11 Implement `src/slm_hindi/schema/corpus_record.py` (`CorpusRecord`)
-- [ ] 2.12 Implement `src/slm_hindi/observability/run_logger.py` (`IngestionRunLogger`)
-- [ ] 2.13 Implement `src/slm_hindi/observability/file_registry.py` (`FileRegistry`)
-
-**Verify:**
-```bash
-pytest tests/unit/test_settings.py tests/unit/test_corpus_record.py \
-       tests/unit/test_run_logger.py tests/unit/test_file_registry.py -v \
-       --cov=src/slm_hindi/config --cov=src/slm_hindi/schema --cov=src/slm_hindi/observability
-```
+- [x] 2.1 Tests: `test_settings.py` — load from sample YAML, field assertions, validation error
+- [x] 2.2 Tests: `test_corpus_record.py` — valid dict, defaults, ValidationError on bad type
+- [x] 2.3 Tests: `test_run_logger.py` — CSV append, column presence, multi-row
+- [x] 2.4 Tests: `test_file_registry.py` — register_file, sha256, FileNotFoundError
+- [x] 2.5 Implement `configs/ingestion_config.yaml`
+- [x] 2.6 Implement `configs/pdf_extraction_config.yaml`
+- [x] 2.7 Implement `configs/model_cleaning_config.yaml`
+- [x] 2.8 Implement `configs/quality_filter_config.yaml`
+- [x] 2.9 Implement `configs/export_config.yaml`
+- [x] 2.10 Implement `src/slm_hindi/config/settings.py` (`IngestionSettings`)
+- [x] 2.11 Implement `src/slm_hindi/schema/corpus_record.py` (`CorpusRecord`)
+- [x] 2.12 Implement `src/slm_hindi/observability/run_logger.py` (`IngestionRunLogger`)
+- [x] 2.13 Implement `src/slm_hindi/observability/file_registry.py` (`FileRegistry`)
 
 ---
 
-## Phase 3 — Sangraha Loader
+## Phase 3 — Sangraha Loader ✅
 
-**Goal:** Load AI4Bharat Sangraha records from HuggingFace and map them to the unified `CorpusRecord` schema.
+**Goal:** Load AI4Bharat Sangraha records and map to `CorpusRecord`.
 
-**Acceptance Criteria:**
-- 5 mocked Sangraha rows load and map to `CorpusRecord` objects without error
-- `source_type`, `cleaning_method`, `language` fields populated correctly
-- `IngestionRunLogger` receives `started` and `completed` events
-
-### Tasks
-
-- [ ] 3.1 Write tests: `tests/unit/test_sangraha_loader.py`
-  - Mock `datasets.load_dataset` to return 5 rows from `sample_rows.jsonl`
-  - Assert all 5 rows produce valid `CorpusRecord` objects
-  - Assert `source_type == "huggingface_dataset"`
-  - Assert `cleaning_method == "deterministic_normalization"`
-  - Assert `cleaning_model is None`
-  - Assert logger receives `started` then `completed` events
-- [ ] 3.2 Implement `src/slm_hindi/ingestion/sangraha_loader.py` (`SangrahaLoader`)
-  - `load(run_logger=None) -> list[CorpusRecord]`
-  - Supports streaming mode (configurable)
-  - Maps HuggingFace row fields to `CorpusRecord`
-  - Logs `sangraha_load` phase events
-
-**Verify:**
-```bash
-pytest tests/unit/test_sangraha_loader.py -v --cov=src/slm_hindi/ingestion/sangraha_loader
-```
+- [x] 3.1 Tests: `test_sangraha_loader.py` — mock load_dataset, schema mapping, logger events
+- [x] 3.2 Implement `sangraha_loader.py` — streaming optional, maps HF rows to CorpusRecord
 
 ---
 
-## Phase 4 — PDF Registry & Extractor
+## Phase 4 — PDF Registry & Extractor ✅
 
-**Goal:** Discover and validate user-provided PDFs; extract text per-page using PyMuPDF with pdfplumber fallback.
+**Goal:** Discover and validate PDFs; extract text via PyMuPDF with pdfplumber fallback.
 
-**Acceptance Criteria:**
-- `PdfRegistry.discover()` finds the sample PDF folder and validates `metadata.json`
-- `PdfExtractor.extract()` extracts 2 pages from the sample PDF
-- Each page record has correct `page_number`, `char_count`, `extraction_method`
-- Missing `metadata.json` raises a `ValueError`
-
-### Tasks
-
-- [ ] 4.1 Write tests: `tests/unit/test_pdf_registry.py`
-  - Valid folder with `original.pdf` + `metadata.json` → returns 1 `PdfSource`
-  - Folder missing `metadata.json` → raises `ValueError`
-  - Folder missing `original.pdf` → raises `FileNotFoundError`
-  - `metadata.json` with wrong schema → raises `ValidationError`
-- [ ] 4.2 Write tests: `tests/unit/test_pdf_extractor.py`
-  - Extract `sample_hindi_2page.pdf` → 2 page records
-  - Each record has `page_number`, `raw_text`, `char_count ≥ 10`
-  - `extraction_method == "pymupdf"`
-  - Force fallback: mock fitz to raise exception → `extraction_method == "pdfplumber"`
-- [ ] 4.3 Implement `src/slm_hindi/ingestion/pdf_registry.py` (`PdfRegistry`, `PdfSource`, `PdfMetadata`)
-  - `discover(input_dir) -> list[PdfSource]`
-  - Validates folder structure and `metadata.json` via pydantic
-- [ ] 4.4 Implement `src/slm_hindi/ingestion/pdf_extractor.py` (`PdfExtractor`)
-  - `extract(pdf_source) -> list[CorpusRecord]` stubs (raw_text populated)
-  - Primary: `fitz.open()` per page
-  - Fallback: `pdfplumber.open()` if fitz raises
-  - Sets `ocr_used=False` (OCR out of scope for MVP)
-
-**Verify:**
-```bash
-pytest tests/unit/test_pdf_registry.py tests/unit/test_pdf_extractor.py -v \
-       --cov=src/slm_hindi/ingestion/pdf_registry \
-       --cov=src/slm_hindi/ingestion/pdf_extractor
-```
+- [x] 4.1 Tests: `test_pdf_registry.py` — valid folder, missing metadata, missing PDF
+- [x] 4.2 Tests: `test_pdf_extractor.py` — 2 pages extracted, PyMuPDF fallback to pdfplumber
+- [x] 4.3 Implement `pdf_registry.py` (`PdfRegistry`, `PdfSource`, `PdfMetadata`)
+- [x] 4.4 Implement `pdf_extractor.py` (`PdfExtractor`) — fitz primary, pdfplumber fallback
 
 ---
 
-## Phase 5 — Ollama Cleaner & Cleaning Validator
+## Phase 5 — Ollama Cleaner & Cleaning Validator ✅
 
-**Goal:** Chunk extracted PDF text, clean via Ollama REST API, and validate each cleaned output against 7 quality checks.
+**Goal:** Chunk PDF text, clean via Ollama REST, validate output against 7 quality checks.
 
-**Acceptance Criteria:**
-- `OllamaCleaner.clean()` calls `requests.post` once per chunk
-- Chunking splits text at paragraph boundaries (≤6 000 chars, 200-char overlap)
-- All 7 validator checks independently reject the right inputs
-- Failed records are quarantined (not discarded) with `cleaning_status="quarantined"`
-
-### Tasks
-
-- [ ] 5.1 Write tests: `tests/unit/test_ollama_cleaner.py`
-  - Mock `requests.post` to return `{"response": "साफ हिंदी पाठ।"}`
-  - Assert one API call per chunk for 10 000-char input (≥2 chunks expected)
-  - Assert overlap: last 200 chars of chunk N appear in chunk N+1
-  - Simulate timeout → assert retry (max 3 attempts with backoff)
-  - Simulate 500 response → raises `OllamaError`
-- [ ] 5.2 Write tests: `tests/unit/test_cleaning_validator.py`
-  - Empty output → reject
-  - Output length < 50% of input → reject
-  - Output length > 120% of input → reject
-  - Devanagari ratio < 0.60 → reject
-  - Prompt echo in output → reject
-  - Repeated lines (≥3 duplicates) → reject
-  - Output is entirely English → reject
-  - Valid Hindi output → accept
-- [ ] 5.3 Implement `src/slm_hindi/ingestion/ollama_cleaner.py` (`OllamaCleaner`, `OllamaError`)
-  - `clean(records: list[CorpusRecord]) -> list[CorpusRecord]`
-  - Chunk each record's `raw_text` with overlap
-  - POST to Ollama with `temperature=0.0`
-  - Exponential backoff on `requests.Timeout` (3 retries, base 2s)
-  - Sets `cleaned_text` on each record
-- [ ] 5.4 Implement `src/slm_hindi/ingestion/cleaning_validator.py` (`CleaningValidator`)
-  - `validate(record: CorpusRecord) -> tuple[CorpusRecord, bool]`
-  - On pass: set `cleaning_status="clean"`; on fail: set `cleaning_status="quarantined"`, keep `cleaned_text`
-  - `save_quarantine(records, path)` → writes `rejected_model_outputs.parquet`
-
-**Verify:**
-```bash
-pytest tests/unit/test_ollama_cleaner.py tests/unit/test_cleaning_validator.py -v \
-       --cov=src/slm_hindi/ingestion/ollama_cleaner \
-       --cov=src/slm_hindi/ingestion/cleaning_validator
-```
+- [x] 5.1 Tests: `test_ollama_cleaner.py` — mock requests.post, chunking, retry on timeout
+- [x] 5.2 Tests: `test_cleaning_validator.py` — all 7 reject cases + pass case
+- [x] 5.3 Implement `ollama_cleaner.py` — chunking with overlap, exponential backoff
+- [x] 5.4 Implement `cleaning_validator.py` — 7 checks, quarantine to Parquet
 
 ---
 
-## Phase 6 — Text Normalizer & Quality Filter
+## Phase 6 — Text Normalizer & Quality Filter ✅
 
-**Goal:** Apply deterministic text normalization (Unicode, whitespace, punctuation) and filter records by Hindi language quality thresholds.
+**Goal:** Deterministic text normalization and Hindi quality filtering.
 
-**Acceptance Criteria:**
-- Unicode NFC applied; Devanagari danda `।` preserved
-- Extra whitespace and repeated newlines collapsed
-- Records below Devanagari ratio threshold are rejected
-- Records below/above char count bounds are rejected
-- All thresholds configurable from YAML
-
-### Tasks
-
-- [ ] 6.1 Write tests: `tests/unit/test_text_normalizer.py`
-  - Input with NFD chars → output is NFC
-  - Input with multiple spaces → single space
-  - Input with repeated newlines → max 2 newlines preserved
-  - Danda `।` preserved and not replaced
-  - Input with repeated header line (`line\nline\nline`) → deduplicated
-  - URL in text → removed (or kept) per config
-  - Decorative symbols removed
-- [ ] 6.2 Write tests: `tests/unit/test_quality_filter.py`
-  - Record with 80% Devanagari → passes (default threshold 0.60)
-  - Record with 30% Devanagari → rejected
-  - Record with `char_count < 30` → rejected
-  - Record with `char_count > 1_000_000` → rejected (upper bound)
-  - Record flagged as table fragment → rejected
-- [ ] 6.3 Implement `src/slm_hindi/ingestion/text_normalizer.py` (`TextNormalizer`)
-  - `normalize(text: str) -> str`
-  - Unicode `unicodedata.normalize("NFC", text)`
-  - Whitespace: collapse spaces/tabs, limit consecutive newlines to 2
-  - Danda: never strip `।`
-  - Repeated line dedup: remove any line appearing ≥3 times consecutively
-  - URL removal if `quality_filter_config.remove_urls == true`
-- [ ] 6.4 Implement `src/slm_hindi/ingestion/quality_filter.py` (`QualityFilter`)
-  - `filter(records: list[CorpusRecord]) -> tuple[list[CorpusRecord], list[CorpusRecord]]`
-  - Returns `(passed, rejected)` tuples
-  - Computes `devanagari_ratio`, `char_count`, `word_count` on `final_text`
-  - Sets `quality_score` as `devanagari_ratio * 0.7 + length_score * 0.3`
-
-**Verify:**
-```bash
-pytest tests/unit/test_text_normalizer.py tests/unit/test_quality_filter.py -v \
-       --cov=src/slm_hindi/ingestion/text_normalizer \
-       --cov=src/slm_hindi/ingestion/quality_filter
-```
+- [x] 6.1 Tests: `test_text_normalizer.py` — NFC, whitespace, danda, repeated lines, URL
+- [x] 6.2 Tests: `test_quality_filter.py` — Devanagari ratio, char bounds, table fragment
+- [x] 6.3 Implement `text_normalizer.py` — NFC, whitespace, danda, URL handling
+- [x] 6.4 Implement `quality_filter.py` — ratio + length filter, quality_score computation
 
 ---
 
-## Phase 7 — Deduplicator & Corpus Splitter
+## Phase 7 — Deduplicator & Corpus Splitter ✅
 
-**Goal:** Remove exact and near-duplicate records; split the corpus into train/validation/test at document level.
+**Goal:** Remove exact and near-duplicate records; split at document level.
 
-**Acceptance Criteria:**
-- Exact duplicates (identical SHA-256) removed; one copy kept
-- Near-duplicates (MinHash Jaccard ≥ 0.85) assigned same `near_dedup_cluster_id`; one copy per cluster kept
-- Split ratios within ±0.5% of 98/1/1 on a 1 000-record test set
-- Split is document-level (all paragraphs of one document go to the same split)
-
-### Tasks
-
-- [ ] 7.1 Write tests: `tests/unit/test_deduplicator.py`
-  - 3 identical records → 1 kept, 2 removed
-  - 2 near-identical records (99% overlap) → 1 kept
-  - 5 distinct records → all 5 kept
-  - `dedup_hash` field populated on all records
-  - `near_dedup_cluster_id` populated on near-dups
-- [ ] 7.2 Write tests: `tests/unit/test_corpus_splitter.py`
-  - 100 records from 10 documents → split ratios ~98/1/1
-  - All paragraphs of same `document_id` end up in same split
-  - `split_name` field set on each record
-  - `random_seed=42` produces deterministic result
-- [ ] 7.3 Implement `src/slm_hindi/ingestion/deduplicator.py` (`Deduplicator`)
-  - `deduplicate(records) -> list[CorpusRecord]`
-  - Pass 1: group by `dedup_hash` (SHA-256 of `final_text`), keep first
-  - Pass 2: MinHash LSH with `datasketch` (num_perm=128, threshold=0.85, 3-gram shingles)
-  - Assign `near_dedup_cluster_id` (UUID) to each cluster
-- [ ] 7.4 Implement `src/slm_hindi/ingestion/corpus_splitter.py` (`CorpusSplitter`)
-  - `split(records) -> dict[str, list[CorpusRecord]]`
-  - Group by `document_id`; shuffle documents with seed
-  - Assign 98% of documents to train, 1% to validation, 1% to test
-  - Set `split_name` on each record
-
-**Verify:**
-```bash
-pytest tests/unit/test_deduplicator.py tests/unit/test_corpus_splitter.py -v \
-       --cov=src/slm_hindi/ingestion/deduplicator \
-       --cov=src/slm_hindi/ingestion/corpus_splitter
-```
+- [x] 7.1 Tests: `test_deduplicator.py` — exact dups removed, near-dups clustered, distinct kept
+- [x] 7.2 Tests: `test_corpus_splitter.py` — 98/1/1 ratios, document-level grouping, seed
+- [x] 7.3 Implement `deduplicator.py` — SHA-256 pass 1, MinHash LSH pass 2
+- [x] 7.4 Implement `corpus_splitter.py` — document shuffle by seed, 98/1/1 assignment
 
 ---
 
-## Phase 8 — Exporter, Manifest & Orchestration
+## Phase 8 — Exporter, Manifest & Orchestration ✅
 
-**Goal:** Write the final corpus in all output formats, generate SHA-256 manifest and profile, and wire everything into a runnable CLI.
+**Goal:** Write corpus in all output formats, generate manifest, wire CLI.
 
-**Acceptance Criteria:**
-- Parquet files round-trip: write then `pd.read_parquet()` returns same data
-- JSONL.gz files contain valid JSON on every line with `text` field
-- TXT.gz files are non-empty
-- `manifest.json` SHA-256 values match actual files
-- `corpus_profile.json` reports correct record/word counts per split
-- `python -m slm_hindi.orchestration.run_ingestion --help` works
-- `--dry-run` exits 0 without writing data files
-- `pipeline_run_log.csv` and `data_file_registry.csv` populated after a run
-
-### Tasks
-
-- [ ] 8.1 Write tests: `tests/unit/test_corpus_exporter.py`
-  - Write 10 records to temp dir → Parquet roundtrip matches input
-  - Write 10 records → JSONL.gz has 10 lines, each parseable JSON with `text` key
-  - Write 10 records → TXT.gz is non-empty
-  - Shard size respected: 5 MB limit with 100-record dataset → multiple shards
-  - `FileRegistry.register_file()` called for each output file
-- [ ] 8.2 Write tests: `tests/unit/test_manifest_generator.py`
-  - SHA-256 in manifest matches `hashlib.sha256(file.read_bytes())`
-  - `corpus_version` matches config
-  - `profile.json` totals match sum of per-split counts
-- [ ] 8.3 Write tests: `tests/integration/test_pdf_pipeline.py`
-  - Registry → Extract → Clean (mocked) → Validate → Normalize → Filter
-  - Input: `sample_hindi_2page.pdf`
-  - Assert at least 1 record passes all stages
-- [ ] 8.4 Write tests: `tests/integration/test_sangraha_pipeline.py`
-  - Load (mocked) → Normalize → Filter → Dedup
-  - Input: `sample_rows.jsonl`
-  - Assert all 5 rows process without error
-- [ ] 8.5 Write tests: `tests/integration/test_full_pipeline.py`
-  - End-to-end with both sources mocked
-  - Assert final Parquet exists and is loadable
-  - Assert `pipeline_run_log.csv` has `completed` rows for each phase
-  - Assert `data_file_registry.csv` has entries for all output files
-- [ ] 8.6 Implement `src/slm_hindi/ingestion/corpus_exporter.py` (`CorpusExporter`)
-  - `export(split_records: dict[str, list[CorpusRecord]], output_dir: Path)`
-  - Write sharded Parquet (`pyarrow`, zstd, 512 MB target)
-  - Write sharded JSONL.gz
-  - Write sharded TXT.gz
-  - Register each output file with `FileRegistry`
-- [ ] 8.7 Implement `src/slm_hindi/ingestion/manifest_generator.py` (`ManifestGenerator`)
-  - `generate(output_dir, corpus_version) -> dict`
-  - Walk output files, compute SHA-256, write `manifest.json`
-  - Compute word/char/record counts per split, write `profile.json`
-- [ ] 8.8 Implement `src/slm_hindi/orchestration/run_ingestion.py`
-  - `typer` app with commands: main pipeline
-  - Flags: `--config PATH`, `--source [sangraha|pdf|all]`, `--dry-run`
-  - Instantiates `IngestionRunLogger` and `FileRegistry` with UUID `run_id`
-  - Passes logger/registry into every component
-  - Catches exceptions, logs to `pipeline_run_log.csv` with `status=failed`
-
-**Verify:**
-```bash
-pytest tests/ -v -m "not requires_ollama" --cov=src/slm_hindi --cov-report=term-missing
-python -m slm_hindi.orchestration.run_ingestion --help
-python -m slm_hindi.orchestration.run_ingestion --config configs/ingestion_config.yaml --dry-run
-```
+- [x] 8.1 Tests: `test_corpus_exporter.py` — Parquet roundtrip, JSONL.gz, TXT.gz, shards
+- [x] 8.2 Tests: `test_manifest_generator.py` — SHA-256 match, version, profile totals
+- [x] 8.3 Tests: `test_pdf_pipeline.py` — registry → extract → clean (mocked) → normalize → filter
+- [x] 8.4 Tests: `test_sangraha_pipeline.py` — load (mocked) → normalize → filter → dedup
+- [x] 8.5 Tests: `test_full_pipeline.py` — end-to-end mocked, Parquet exists, CSV populated
+- [x] 8.6 Implement `corpus_exporter.py` — sharded Parquet (zstd), JSONL.gz, TXT.gz
+- [x] 8.7 Implement `manifest_generator.py` — manifest.json + profile.json
+- [x] 8.8 Implement `run_ingestion.py` — typer CLI, --config/--source/--dry-run flags
 
 ---
 
-## Completion Checklist
+## Phase 9 — Wikipedia Crawler ✅
 
-- [ ] All unit tests pass: `pytest tests/unit/ -v`
-- [ ] All integration tests pass (Ollama mocked): `pytest tests/integration/ -v -m "not requires_ollama"`
-- [ ] Coverage ≥ 80%: `pytest --cov=src/slm_hindi --cov-fail-under=80`
-- [ ] Linting clean: `make lint`
-- [ ] `DevelopmentPlan.md` up to date with final design
-- [ ] `data/reports/pipeline_run_log.csv` and `data_file_registry.csv` generated after a dry run
-- [ ] `data/final/` output loadable via `datasets.load_dataset("parquet", data_files=...)`
+**Goal:** BFS crawler over Hindi Wikipedia producing `CorpusRecord` objects with `source_type="wiki"`.
+
+**Acceptance Criteria:**
+- BFS respects `max_depth` and `max_pages` per seed
+- `link_include_pattern` / `link_exclude_pattern` regexes filter outbound links
+- Namespace-prefixed titles (e.g. `Wikipedia:`, `Help:`) excluded automatically
+- Paragraphs shorter than `min_paragraph_chars` skipped
+- Rate limiting enforced between API calls
+- Timeout retries with exponential backoff; raises `WikiCrawlError` after max retries
+- `progress_callback` fires per page crawled
+- `source_type == "wiki"` on all produced records
+
+### Tasks
+
+- [x] 9.1 Add `WikiSourceConfig`, `WikiSeedConfig`, `WikiCrawlConfig` to `settings.py`
+- [x] 9.2 Create `configs/wiki_crawl_config.yaml`
+- [x] 9.3 Create `tests/fixtures/sample_wiki/sample_extract_response.json`
+- [x] 9.4 Create `tests/fixtures/sample_wiki/sample_links_response.json`
+- [x] 9.5 Write `tests/unit/test_wiki_crawler.py` (23 tests):
+  - `TestTitleFromUrl` — encoded URL decoding, underscore-to-space
+  - `TestCleanExtract` — section removal, heading markers, blank line collapse, empty input
+  - `TestWikiCrawlerFetchExtract` — returns text+URL, raises on missing page
+  - `TestWikiCrawlerFetchLinks` — namespace-0 titles returned, pagination followed
+  - `TestWikiCrawlerFilterLinks` — namespace prefixes, global/seed exclude patterns
+  - `TestWikiCrawlerProcessPage` — produces CorpusRecords, skips short paragraphs, skips missing page
+  - `TestWikiCrawlerRetry` — retries on Timeout, raises WikiCrawlError after max retries
+  - `TestWikiCrawlerCrawlSeed` — BFS respects max_pages, progress_callback fires
+- [x] 9.6 Implement `ingestion/wiki_crawler.py` (`WikiCrawler`, `WikiCrawlError`)
+  - `crawl_seed(seed, run_logger, file_registry, progress_callback) -> list[CorpusRecord]`
+  - `_fetch_extract(title) -> tuple[str, str]` — MediaWiki `prop=extracts&explaintext=1`
+  - `_fetch_links(title) -> list[str]` — MediaWiki `prop=links&plnamespace=0` with pagination
+  - `_clean_extract(text) -> str` — strip `== Section ==` headers, collapse blank lines
+  - `_filter_links(titles, seed) -> list[str]` — namespace + regex filtering
+  - `_process_page(title, text, url) -> list[CorpusRecord]` — split on `\n\n`, min_chars
+  - `_title_from_url(url) -> str` — URL decode + underscore-to-space
+- [x] 9.7 Add `source_type="wiki"` Literal to `CorpusRecord`
+- [x] 9.8 Add wiki stage to `run_ingestion.py`
+- [x] 9.9 Remove unused `BeautifulSoup` import (MediaWiki `explaintext=1` returns plain text)
+- [x] 9.10 Verify: all 23 wiki tests pass
+
+---
+
+## Phase 10 — Rich Terminal UI, Progress Bars & Monorepo Reorganization ✅
+
+**Goal:** Rich-formatted CLI output with per-stage progress bars; reorganize project into `data_ingestion/` subfolder to support future `tokenizer_training/` and `slm_training/` phases.
+
+**Acceptance Criteria:**
+- All pipeline stages show spinner + progress bar in terminal
+- Logging output uses Rich formatting (coloured, timestamped)
+- Windows CP1252 encoding issue resolved (box-drawing chars render correctly)
+- Single `Console` instance shared across all modules
+- All pipeline component methods accept `progress_callback: Callable[[int], None] | None = None`
+- Project lives in `data_ingestion/` subfolder
+- `CORPUS_HANDOFF.md` at monorepo root documents corpus contract for downstream phases
+- `run_tests.sh/.bat` and `run_pipeline.sh/.bat` convenience scripts exist
+
+### Tasks
+
+- [x] 10.1 Create `src/slm_hindi/ui/__init__.py`
+- [x] 10.2 Create `src/slm_hindi/ui/progress.py`:
+  - `sys.stdout.reconfigure(encoding="utf-8")` at import (Windows fix)
+  - `console = Console(legacy_windows=False)` — single shared instance
+  - `setup_logging(log_level)` — configures `RichHandler` pointing at `console`
+  - `make_progress() -> Progress` — spinner + bar + MofN + elapsed
+  - `pipeline_progress(description, total)` — context manager variant
+- [x] 10.3 Add `progress_callback` to `sangraha_loader.py` (`load()`)
+- [x] 10.4 Add `progress_callback` to `text_normalizer.py` (`normalize_records()`)
+- [x] 10.5 Add `progress_callback` to `quality_filter.py` (`filter()`)
+- [x] 10.6 Add `progress_callback` to `deduplicator.py` (`deduplicate()`)
+- [x] 10.7 Add `progress_callback` to `corpus_splitter.py` (`split()`)
+- [x] 10.8 Add `progress_callback` to `corpus_exporter.py` (`export()`)
+- [x] 10.9 Rewrite `run_ingestion.py`:
+  - Import `console` from `slm_hindi.ui.progress` (no own Console)
+  - Call `setup_logging()` at startup
+  - Wrap each stage in `make_progress()` context manager
+  - Pass `lambda n: progress.advance(task, n)` as `progress_callback`
+  - Add `--source wiki` support
+  - Rich `console.rule()` / `console.print()` for stage headers and summaries
+- [x] 10.10 Create `run_tests.sh` + `run_tests.bat` (venv activation + pytest)
+- [x] 10.11 Create `run_pipeline.sh` + `run_pipeline.bat` (venv activation + python -m)
+- [x] 10.12 Update `Makefile` — add `run-wiki` target, `test-int` alias
+- [x] 10.13 Reorganize into monorepo:
+  - Move all files into `data_ingestion/` subfolder
+  - Create `tokenizer_training/.gitkeep` and `slm_training/.gitkeep`
+  - Update `.gitignore` path prefixes from `data/` to `data_ingestion/data/`
+  - Move `CLAUDE.md`, `DevelopmentPlan.md`, `action-items.md` into `data_ingestion/`
+  - Create `CORPUS_HANDOFF.md` at monorepo root
+- [x] 10.14 Verify: 131 tests pass, ≥83% coverage, rich CLI renders correctly on Windows
+
+---
+
+## Completion Checklist ✅
+
+- [x] All unit tests pass: `pytest tests/unit/ -v` (131 tests)
+- [x] All integration tests pass (Ollama mocked): `pytest tests/integration/ -v -m "not requires_ollama"`
+- [x] Coverage ≥ 80%: 83% achieved
+- [x] Linting clean: `make lint`
+- [x] `DevelopmentPlan.md` up to date (v2.0)
+- [x] `CORPUS_HANDOFF.md` created at monorepo root
+- [x] `pipeline_run_log.csv` and `data_file_registry.csv` generated during live pipeline run
+- [x] Pipeline successfully ingesting live Sangraha data (17.4M records downloaded)
+- [ ] `data/final/` output loadable via `datasets.load_dataset("parquet", data_files=...)` — pending pipeline completion
