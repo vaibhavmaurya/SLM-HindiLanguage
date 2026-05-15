@@ -1,0 +1,21 @@
+# quality_filter_config.yaml — Hindi text quality filtering thresholds
+
+quality_filter:
+  # Minimum fraction of Devanagari Unicode characters in final_text
+  min_devanagari_ratio: 0.60
+  # Minimum character count for a record to be kept
+  min_char_count: 30
+  # Maximum character count; records above this are split upstream or rejected
+  max_char_count: 1000000
+  # Reject records that appear to be table fragments (high digit/symbol ratio)
+  reject_table_fragments: true
+  # Digit ratio above this threshold → likely a table fragment
+  max_digit_ratio: 0.30
+  # Symbol ratio above this threshold → likely a table fragment or OCR noise
+  max_symbol_ratio: 0.25
+  # Remove URLs from text (true) or preserve them (false)
+  remove_urls: true
+  # Quality score weights (must sum to 1.0)
+  quality_score_weights:
+    devanagari_ratio: 0.70
+    length_score: 0.30

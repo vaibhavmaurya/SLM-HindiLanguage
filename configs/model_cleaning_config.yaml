@@ -1,0 +1,41 @@
+# model_cleaning_config.yaml — Ollama + Qwen3 model-assisted cleaning settings
+
+model_cleaning:
+  enabled: true
+  engine: ollama
+  model: qwen3
+  endpoint: http://localhost:11434/api/generate
+  # Seconds to wait before timing out a single Ollama request
+  request_timeout_seconds: 180
+  # Retry config for failed/timed-out requests
+  max_retries: 3
+  retry_backoff_base_seconds: 2
+
+  generation_options:
+    # temperature=0.0 for deterministic, conservative cleaning
+    temperature: 0.0
+    top_p: 0.9
+    repeat_penalty: 1.05
+
+  chunking:
+    # Maximum input characters per Ollama call
+    max_input_chars: 6000
+    # Overlap between consecutive chunks (for context continuity)
+    overlap_chars: 200
+    # Split chunks at paragraph boundaries when possible
+    split_on_paragraph: true
+
+  # Validation rules applied to each cleaned output
+  validation:
+    min_output_char_count: 30
+    # Output shorter than this fraction of input → quarantine
+    min_output_to_input_length_ratio: 0.50
+    # Output longer than this fraction of input → quarantine (hallucination risk)
+    max_output_to_input_length_ratio: 1.20
+    # Minimum fraction of Devanagari characters in output
+    min_devanagari_ratio: 0.60
+    reject_if_output_empty: true
+    # Detect if the model echoed the prompt back in the output
+    reject_if_prompt_echo: true
+    # Detect model repetition loops (≥3 identical consecutive lines)
+    reject_if_repeated_lines: true

@@ -1,0 +1,32 @@
+# ingestion_config.yaml — Master pipeline configuration
+# Controls which sources are enabled and global runtime settings.
+
+project:
+  name: hindi-slm-corpus
+  corpus_version: hindi_corpus_v001
+  data_root: data
+  log_level: INFO
+
+sources:
+  sangraha:
+    enabled: true
+    dataset_name: ai4bharat/sangraha
+    data_dir: verified/hin
+    split: train
+    streaming: false
+    # Max records to load; set to null for all records
+    max_records: null
+    # Local cache directory for HuggingFace datasets; null uses ~/.cache/huggingface
+    cache_dir: null
+
+  pdf:
+    enabled: true
+    input_dir: data/raw/pdf
+    require_metadata_json: true
+
+runtime:
+  # Number of records processed per batch in memory-intensive stages
+  batch_size: 10000
+  random_seed: 42
+  # Number of shards for final output files
+  max_shard_size_mb: 512

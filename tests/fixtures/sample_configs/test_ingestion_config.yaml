@@ -1,0 +1,28 @@
+# Minimal config for unit and integration tests.
+# Points to fixture directories; never downloads real data.
+
+project:
+  name: hindi-slm-test
+  corpus_version: hindi_corpus_test_v001
+  data_root: /tmp/slm_hindi_test
+  log_level: DEBUG
+
+sources:
+  sangraha:
+    enabled: true
+    dataset_name: ai4bharat/sangraha
+    data_dir: verified/hin
+    split: train
+    streaming: false
+    max_records: 5
+    cache_dir: null
+
+  pdf:
+    enabled: true
+    input_dir: tests/fixtures/sample_pdfs
+    require_metadata_json: false
+
+runtime:
+  batch_size: 10
+  random_seed: 42
+  max_shard_size_mb: 10

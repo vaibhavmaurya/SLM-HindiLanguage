@@ -1,0 +1,17 @@
+# pdf_extraction_config.yaml — PDF text extraction settings
+
+pdf_extraction:
+  # Primary engine: pymupdf (fast) or pdfplumber (table-aware)
+  primary_engine: pymupdf
+  # Fallback engine used when primary raises an exception
+  fallback_engine: pdfplumber
+  # OCR for scanned PDFs — disabled for MVP (requires tesseract)
+  ocr_enabled: false
+  # Unit of extraction: page or block
+  extract_by: page
+  # Preserve the PDF page number in the output record
+  preserve_page_number: true
+  # Pages with fewer chars than this threshold are skipped (likely blank or image-only)
+  min_page_text_chars: 30
+  # Maximum characters extracted per page (safety cap)
+  max_page_text_chars: 50000

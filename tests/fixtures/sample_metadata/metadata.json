@@ -1,0 +1,11 @@
+{
+  "source_id": "pdf_test_001",
+  "source_name": "Hindi Grammar Test Document",
+  "file_name": "sample_hindi_2page.pdf",
+  "source_category": "grammar",
+  "provided_by": "user",
+  "license_or_usage_note": "test-only",
+  "language": "hi",
+  "script": "Devanagari",
+  "notes": "Sample PDF used for unit and integration tests only"
+}

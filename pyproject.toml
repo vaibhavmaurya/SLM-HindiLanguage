@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slm-hindi"
+version = "0.1.0"
+description = "Data ingestion pipeline for Hindi SLM pretraining corpus"
+requires-python = ">=3.11"
+dependencies = [
+    "datasets>=2.19.0",
+    "PyMuPDF>=1.24.0",
+    "pdfplumber>=0.11.0",
+    "pandas>=2.2.0",
+    "pyarrow>=16.0.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+    "PyYAML>=6.0.1",
+    "datasketch>=1.6.5",
+    "requests>=2.32.0",
+    "typer>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+    "ruff>=0.4.0",
+    "reportlab>=4.2.0",
+]
+
+[project.scripts]
+slm-ingest = "slm_hindi.orchestration.run_ingestion:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/slm_hindi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra -q"
+markers = [
+    "requires_ollama: marks tests that need a live Ollama instance (deselect with '-m not requires_ollama')",
+]
+
+[tool.coverage.run]
+source = ["src/slm_hindi"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]

@@ -1,0 +1,35 @@
+# export_config.yaml — Corpus export format and split configuration
+
+exports:
+  parquet:
+    enabled: true
+    # zstd gives the best compression/speed tradeoff for Parquet
+    compression: zstd
+    # Target shard size in MB (actual size may vary by row group)
+    shard_size_mb: 512
+
+  text:
+    enabled: true
+    compression: gzip
+    # Each document paragraph on its own line (false = document blocks separated by blank lines)
+    one_document_per_line: false
+    separator: "\n\n"
+
+  jsonl:
+    enabled: true
+    compression: gzip
+    # Include metadata fields (source_type, document_id, record_id) alongside text
+    include_metadata: true
+
+splits:
+  train: 0.98
+  validation: 0.01
+  test: 0.01
+  # Split at document level so all paragraphs of a document stay together
+  split_level: document
+  random_seed: 42
+
+# File naming convention: {corpus_version}_{split}_{shard_index:05d}.{ext}
+# Example: hindi_corpus_v001_train_00000.parquet
+naming:
+  corpus_version: hindi_corpus_v001
