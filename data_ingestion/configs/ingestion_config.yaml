@@ -13,7 +13,7 @@ sources:
     enabled: true
     dataset_name: ai4bharat/sangraha
     data_dir: verified/hin
-    split: train
+    split: train[:15%]
     streaming: false
     # Max records to load; set to null for all records
     max_records: null
@@ -26,7 +26,7 @@ sources:
     require_metadata_json: true
 
   wiki:
-    enabled: true
+    enabled: false  # disabled — hitting 429 Too Many Requests from MediaWiki API
     seeds:
       - url: "https://hi.wikipedia.org/wiki/%E0%A4%AE%E0%A4%B9%E0%A4%BE%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4"
         name: "mahabharata"

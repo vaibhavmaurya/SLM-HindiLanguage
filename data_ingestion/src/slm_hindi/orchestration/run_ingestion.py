@@ -25,7 +25,14 @@ def main(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Validate config and paths without writing data")
     ] = False,
+    force_reload: Annotated[
+        bool, typer.Option("--force-reload", help="Re-download Sangraha even if a local checkpoint exists")
+    ] = False,
 ) -> None:
+    import pandas as pd  # noqa: PLC0415
+    import pyarrow as pa  # noqa: PLC0415
+    import pyarrow.parquet as pq  # noqa: PLC0415
+
     from slm_hindi.config.settings import load_settings  # noqa: PLC0415
     from slm_hindi.ingestion.corpus_exporter import CorpusExporter  # noqa: PLC0415
     from slm_hindi.ingestion.corpus_splitter import CorpusSplitter  # noqa: PLC0415
@@ -41,6 +48,7 @@ def main(
     from slm_hindi.ingestion.wiki_crawler import WikiCrawler  # noqa: PLC0415
     from slm_hindi.observability.file_registry import FileRegistry  # noqa: PLC0415
     from slm_hindi.observability.run_logger import IngestionRunLogger  # noqa: PLC0415
+    from slm_hindi.schema.corpus_record import CorpusRecord  # noqa: PLC0415
     from slm_hindi.ui.progress import make_progress, setup_logging  # noqa: PLC0415
 
     settings = load_settings(config)
@@ -90,16 +98,64 @@ def main(
 
     # --- Sangraha source (load only — no normalize, no quality filter) ---
     if source in ("sangraha", "all") and settings.sources.sangraha.enabled:
-        log.info("Loading Sangraha dataset…")
-        with make_progress() as progress:
-            task = progress.add_task("[cyan]Sangraha load", total=settings.sources.sangraha.max_records or 0)
-            loader = SangrahaLoader(settings.sources.sangraha, run_id=run_id)
-            records = loader.load(
-                run_logger=run_logger,
-                progress_callback=lambda n: progress.advance(task, n),
+        corpus_version = settings.export.naming.corpus_version
+        checkpoint_dir = data_root / "raw" / "huggingface"
+        checkpoint_glob = f"sangraha_checkpoint_{corpus_version}_*.parquet"
+        checkpoint_shards = sorted(checkpoint_dir.glob(checkpoint_glob))
+
+        if checkpoint_shards and not force_reload:
+            console.print(
+                f"  [yellow]Sangraha checkpoint found[/yellow] ({len(checkpoint_shards)} shard(s)) — "
+                f"loading from disk. Use [bold]--force-reload[/bold] to re-download."
             )
-        sangraha_records.extend(records)
-        console.print(f"  Sangraha: [green]{len(records)} records loaded[/green] (skipping normalize + quality filter)")
+            dfs = [pd.read_parquet(p) for p in checkpoint_shards]
+            df_all = pd.concat(dfs, ignore_index=True)
+            sangraha_records = [CorpusRecord(**row) for row in df_all.to_dict("records")]
+            console.print(f"  Sangraha: [green]{len(sangraha_records)} records[/green] loaded from checkpoint")
+        else:
+            if force_reload and checkpoint_shards:
+                console.print("  [yellow]--force-reload set[/yellow] — discarding existing checkpoint and re-downloading.")
+                for p in checkpoint_shards:
+                    p.unlink()
+
+            log.info("Loading Sangraha dataset…")
+            with make_progress() as progress:
+                task = progress.add_task("[cyan]Sangraha load", total=settings.sources.sangraha.max_records or 0)
+                loader = SangrahaLoader(settings.sources.sangraha, run_id=run_id)
+                records = loader.load(
+                    run_logger=run_logger,
+                    progress_callback=lambda n: progress.advance(task, n),
+                )
+            sangraha_records.extend(records)
+            console.print(f"  Sangraha: [green]{len(records)} records loaded[/green] (skipping normalize + quality filter)")
+
+            # Persist checkpoint so future runs skip the HuggingFace download.
+            shard_bytes = settings.export.exports.parquet.shard_size_mb * 1024 * 1024
+            shard_idx = 0
+            shard: list[CorpusRecord] = []
+            shard_size = 0
+
+            def _flush_shard(shard: list[CorpusRecord], idx: int) -> None:
+                fname = checkpoint_dir / f"sangraha_checkpoint_{corpus_version}_{idx:05d}.parquet"
+                df = pd.DataFrame([r.model_dump() for r in shard])
+                table = pa.Table.from_pandas(df, preserve_index=False)
+                pq.write_table(table, str(fname), compression="zstd")
+                log.info("Checkpoint shard written: %s (%d records)", fname.name, len(shard))
+
+            console.print("  Saving Sangraha checkpoint…")
+            for record in sangraha_records:
+                size = len(record.final_text.encode("utf-8"))
+                if shard and shard_size + size > shard_bytes:
+                    _flush_shard(shard, shard_idx)
+                    shard_idx += 1
+                    shard = []
+                    shard_size = 0
+                shard.append(record)
+                shard_size += size
+            if shard:
+                _flush_shard(shard, shard_idx)
+                shard_idx += 1
+            console.print(f"  [green]✓[/green] Checkpoint saved ({shard_idx} shard(s) in {checkpoint_dir})")
 
     # --- PDF source (Ollama clean → normalize → quality filter) ---
     if source in ("pdf", "all") and settings.sources.pdf.enabled:
