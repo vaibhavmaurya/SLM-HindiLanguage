@@ -1,0 +1,10 @@
+validation:
+  validation_file: data/validation/hindi_validation_sentences.txt
+  reports_dir: data/reports
+  thresholds:
+    max_unk_rate: 0.001
+    min_chars_per_token: 3.0
+    max_tokens_per_word: 2.5
+    min_roundtrip_success_rate: 0.99
+    min_devanagari_coverage: 0.995
+    max_special_token_split_failures: 0

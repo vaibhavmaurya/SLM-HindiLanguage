@@ -1,0 +1,5 @@
+publish:
+  hf_repo_id: vaibhavmaurya/hindi-slm-tokenizer-v001
+  private: true
+  create_repo_if_missing: true
+  source_dir: data/final/hindi_slm_tokenizer_v001

@@ -1,0 +1,56 @@
+project:
+  name: hindi-slm-tokenizer
+  tokenizer_version: hindi_slm_tokenizer_v001
+  hf_repo_id: vaibhavmaurya/hindi-slm-tokenizer-v001
+  data_root: data
+  log_level: INFO
+
+input:
+  parquet_train_folder: ../data_ingestion/data/final/parquet/train
+  text_column: final_text
+  file_pattern: "*.parquet"
+
+sampling:
+  random_seed: 42
+  smoke_test:
+    target_size_gb: 0.5
+    output_file: data/samples/smoke_test/sangraha_tokenizer_sample_500mb.txt
+  experiment:
+    target_size_gb: 5.0
+    output_file: data/samples/experiment/sangraha_tokenizer_sample_5gb.txt
+  final:
+    target_size_gb: 10.0
+    output_file: data/samples/final/sangraha_tokenizer_sample_10gb.txt
+
+text_filters:
+  min_char_count: 30
+  max_char_count: 5000
+  min_devanagari_ratio: 0.60
+  remove_empty: true
+  normalize_unicode: true
+
+tokenizer:
+  algorithm: unigram
+  vocab_sizes: [24000, 32000, 48000]
+  default_vocab_size: 32000
+  normalizer: nfkc
+  pre_tokenizer: metaspace
+  decoder: metaspace
+  max_piece_length: 24
+  n_sub_iterations: 2
+  model_max_length: 2048
+
+special_tokens:
+  pad_token: "<pad>"
+  unk_token: "<unk>"
+  bos_token: "<s>"
+  eos_token: "</s>"
+  additional_special_tokens:
+    - "<|system|>"
+    - "<|user|>"
+    - "<|assistant|>"
+    - "<|end|>"
+
+artifacts:
+  artifact_dir: data/artifacts
+  final_dir: data/final/hindi_slm_tokenizer_v001
