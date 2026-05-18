@@ -6,6 +6,9 @@ import uuid
 from pathlib import Path
 
 import typer
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env.local", override=False)
 
 from hindi_tokenizer.config.settings import load_settings
 from hindi_tokenizer.corpus.corpus_sampler import CorpusSampler

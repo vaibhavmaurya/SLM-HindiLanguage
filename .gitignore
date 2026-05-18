@@ -16,6 +16,7 @@ build/
 venv/
 env/
 .env
+.env.local
 pyvenv.cfg
 # Bare venv components if accidentally created in project root
 Lib/
