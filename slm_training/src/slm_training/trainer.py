@@ -182,7 +182,8 @@ def train(
 
     step = start_step
     train_iter = iter(train_loader)
-    accum_loss = 0.0
+    log_loss = 0.0   # accumulates over log_every steps for TensorBoard average
+    step_loss = 0.0  # per-optimizer-step loss for progress bar display
     t0 = time.perf_counter()
 
     if use_rich:
@@ -192,6 +193,7 @@ def train(
         while step < train_cfg.max_steps:
             model.train()
             optimizer.zero_grad()
+            step_loss = 0.0  # reset each optimizer step
 
             for micro_step in range(train_cfg.gradient_accumulation_steps):
                 try:
@@ -208,7 +210,7 @@ def train(
                         _, loss = model(input_ids, labels=labels)
                     loss = loss / train_cfg.gradient_accumulation_steps
                     loss.backward()
-                    accum_loss += loss.item()
+                    step_loss += loss.item()
 
                 except torch.cuda.OutOfMemoryError:
                     optimizer.zero_grad()
@@ -230,9 +232,10 @@ def train(
             nn.utils.clip_grad_norm_(model.parameters(), train_cfg.max_grad_norm)
             optimizer.step()
             step += 1
+            log_loss += step_loss
 
             if use_rich:
-                progress.update(task, advance=1, loss=accum_loss, lr=lr)
+                progress.update(task, advance=1, loss=step_loss, lr=lr)
 
             if step % train_cfg.log_every == 0:
                 elapsed = time.perf_counter() - t0
@@ -243,18 +246,19 @@ def train(
                     * model_cfg.max_seq_len
                     / elapsed
                 )
+                avg_loss = log_loss / train_cfg.log_every
                 vram_gb = torch.cuda.memory_allocated() / 1e9 if torch.cuda.is_available() else 0
                 if not use_rich:
                     print(
-                        f"step={step:6d}  loss={accum_loss:.4f}  lr={lr:.2e}"
+                        f"step={step:6d}  loss={avg_loss:.4f}  lr={lr:.2e}"
                         f"  tok/s={tokens_per_sec:,.0f}  vram={vram_gb:.2f}GB"
                     )
                 if tb_writer:
-                    tb_writer.add_scalar("train/loss", accum_loss, step)
+                    tb_writer.add_scalar("train/loss", avg_loss, step)
                     tb_writer.add_scalar("train/lr", lr, step)
                     tb_writer.add_scalar("train/tokens_per_sec", tokens_per_sec, step)
                     tb_writer.add_scalar("train/vram_gb", vram_gb, step)
-                accum_loss = 0.0
+                log_loss = 0.0
                 t0 = time.perf_counter()
 
             if step % train_cfg.eval_every == 0 and val_loader is not None:
@@ -275,7 +279,7 @@ def train(
             progress.stop()
 
     # Final checkpoint
-    _save_checkpoint(model, optimizer, step, accum_loss, ckpt_dir, model_cfg, train_cfg)
+    _save_checkpoint(model, optimizer, step, step_loss, ckpt_dir, model_cfg, train_cfg)
     print(f"[trainer] Training complete at step {step}. Final checkpoint saved.")
 
 
