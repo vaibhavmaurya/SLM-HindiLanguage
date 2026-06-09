@@ -1,0 +1,22 @@
+model_config:
+  dropout: 0.1
+  head_dim: 64
+  hidden_size: 512
+  intermediate_size: 1536
+  max_seq_len: 512
+  num_attention_heads: 8
+  num_kv_heads: 2
+  num_layers: 10
+  rms_norm_eps: 1.0e-06
+  rope_base: 10000.0
+  tie_embeddings: true
+  vocab_size: 32000
+parameter_counts:
+  all_layers: 30156800
+  attention_per_layer: 655360
+  embedding: 16384000
+  final_norm: 512
+  lm_head: 0
+  mlp_per_layer: 2359296
+  norm_per_layer: 1024
+  total: 46541312

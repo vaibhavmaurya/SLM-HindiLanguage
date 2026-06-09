@@ -1,0 +1,31 @@
+# Core ML
+torch>=2.2.0
+torchvision
+torchaudio
+
+# HuggingFace stack
+transformers>=4.40.0
+datasets>=2.18.0
+accelerate>=0.28.0
+huggingface_hub>=0.22.0
+tokenizers>=0.19.0
+
+# Training utilities
+tensorboard>=2.16.0
+
+# Data / IO
+pyarrow>=15.0.0
+pandas>=2.0.0
+pyyaml>=6.0
+
+# Display / CLI
+rich>=13.0.0
+tqdm>=4.66.0
+
+# GGUF export (install separately if CUDA build needed)
+# llama-cpp-python>=0.2.60
+
+# Dev / notebook
+jupyter>=1.0.0
+ipykernel>=6.0.0
+ipywidgets>=8.0.0

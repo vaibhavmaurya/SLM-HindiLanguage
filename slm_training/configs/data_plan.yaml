@@ -1,0 +1,8 @@
+byte_count: 221447
+byte_count_human: 0.22 MB
+config: verified
+download_timestamp: '2026-06-08T08:31:07.292300Z'
+language: hin
+note: Synthetic dataset — bypasses HF download for pipeline smoke test
+row_count: 500
+source: SYNTHETIC (offline test)

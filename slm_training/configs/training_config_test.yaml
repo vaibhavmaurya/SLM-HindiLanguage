@@ -1,0 +1,13 @@
+dtype: bfloat16
+eval_every: 25
+gradient_accumulation_steps: 1
+learning_rate: 0.0003
+log_every: 5
+max_grad_norm: 1.0
+max_oom_retries: 5
+max_steps: 100
+num_workers: 0
+per_device_batch_size: 2
+save_every: 50
+warmup_steps: 10
+weight_decay: 0.1

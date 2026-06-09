@@ -67,3 +67,9 @@ Thumbs.db
 # Logs
 *.log
 logs/
+pipeline_output.txt
+pipeline_stderr.txt
+
+# SLM training — large data and model artifacts (never commit)
+slm_training/data/
+slm_training/artifacts/

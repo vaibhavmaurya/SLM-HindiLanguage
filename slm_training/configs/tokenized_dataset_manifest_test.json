@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-06-09T14:56:53.711017Z",
+  "seq_len": 512,
+  "total_sequences": 1861715,
+  "splits": {
+    "train": 1824484,
+    "val": 18611,
+    "test": 18620
+  },
+  "train_first_shard_sha256": "fc859c9e22b37d061809b2d438d18ff9d02fe78ea7ff567aca36ee88b9126c4c",
+  "schema": "input_ids: List[int] of length seq_len"
+}

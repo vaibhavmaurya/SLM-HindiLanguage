@@ -1,0 +1,14 @@
+bfloat16_supported: true
+cpu_cores_physical: 14
+cpu_model: 13th Gen Intel(R) Core(TM) i7-13700H
+cpu_threads: 20
+cuda_version: '12.4'
+disk_free_gb: 402.0
+gpu_architecture: Ada Lovelace
+gpu_available: true
+gpu_name: NVIDIA RTX 3000 Ada Generation Laptop GPU
+gpu_vram_gb: 8.59
+os_name: Windows 11
+python_version: 3.12.5
+ram_gb: 34.0
+training_tier: SMALL
