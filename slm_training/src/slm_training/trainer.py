@@ -119,9 +119,8 @@ class OOMRecovery:
             self.train_cfg.per_device_batch_size = max(1, self.train_cfg.per_device_batch_size // 2)
             print(f"[OOM] Retry {self.retries}: batch_size → {self.train_cfg.per_device_batch_size}")
         elif self.retries == 2:
-            print(f"[OOM] Retry {self.retries}: enabling gradient checkpointing")
-            # Caller must re-enable; flag returned via attribute
-            self.enable_gradient_checkpointing = True
+            self.train_cfg.gradient_accumulation_steps = max(1, self.train_cfg.gradient_accumulation_steps // 2)
+            print(f"[OOM] Retry {self.retries}: grad_accum → {self.train_cfg.gradient_accumulation_steps}")
         elif self.retries == 3:
             self.model_cfg.max_seq_len = self.model_cfg.max_seq_len // 2
             print(f"[OOM] Retry {self.retries}: seq_len → {self.model_cfg.max_seq_len}")
@@ -131,8 +130,6 @@ class OOMRecovery:
             print(f"[OOM] Retry {self.retries}: tier down → hidden=384, layers=8")
 
         return True
-
-    enable_gradient_checkpointing: bool = False
 
 
 def train(
@@ -194,6 +191,7 @@ def train(
             model.train()
             optimizer.zero_grad()
             step_loss = 0.0  # reset each optimizer step
+            oom_occurred = False
 
             for micro_step in range(train_cfg.gradient_accumulation_steps):
                 try:
@@ -219,17 +217,19 @@ def train(
                     if not can_continue:
                         print("[trainer] OOM: all recovery strategies exhausted. Stopping.")
                         return
-                    if oom_recovery.enable_gradient_checkpointing:
-                        model.gradient_checkpointing_enable()
-                        oom_recovery.enable_gradient_checkpointing = False
+                    oom_occurred = True
                     break
+
+            # Skip optimizer step if OOM cleared the gradients mid-accumulation
+            if oom_occurred:
+                continue
 
             # Update LR
             lr = _cosine_lr(step, train_cfg.warmup_steps, train_cfg.max_steps, train_cfg.learning_rate)
             for group in optimizer.param_groups:
                 group["lr"] = lr
 
-            nn.utils.clip_grad_norm_(model.parameters(), train_cfg.max_grad_norm)
+            grad_norm = nn.utils.clip_grad_norm_(model.parameters(), train_cfg.max_grad_norm).item()
             optimizer.step()
             step += 1
             log_loss += step_loss
@@ -251,11 +251,12 @@ def train(
                 if not use_rich:
                     print(
                         f"step={step:6d}  loss={avg_loss:.4f}  lr={lr:.2e}"
-                        f"  tok/s={tokens_per_sec:,.0f}  vram={vram_gb:.2f}GB"
+                        f"  grad_norm={grad_norm:.3f}  tok/s={tokens_per_sec:,.0f}  vram={vram_gb:.2f}GB"
                     )
                 if tb_writer:
                     tb_writer.add_scalar("train/loss", avg_loss, step)
                     tb_writer.add_scalar("train/lr", lr, step)
+                    tb_writer.add_scalar("train/grad_norm", grad_norm, step)
                     tb_writer.add_scalar("train/tokens_per_sec", tokens_per_sec, step)
                     tb_writer.add_scalar("train/vram_gb", vram_gb, step)
                 log_loss = 0.0
@@ -270,15 +271,21 @@ def train(
                     tb_writer.add_scalar("val/perplexity", math.exp(val_loss), step)
 
             if step % train_cfg.save_every == 0:
-                _save_checkpoint(model, optimizer, step, accum_loss, ckpt_dir, model_cfg, train_cfg)
+                _save_checkpoint(model, optimizer, step, step_loss, ckpt_dir, model_cfg, train_cfg)
                 if not use_rich:
                     print(f"  [ckpt] Saved checkpoint at step {step}")
+
+    except KeyboardInterrupt:
+        print(f"\n[trainer] Interrupted at step {step} — saving checkpoint ...")
+        _save_checkpoint(model, optimizer, step, step_loss, ckpt_dir, model_cfg, train_cfg)
+        print(f"[trainer] Checkpoint saved. Re-run train.py to resume.")
+        raise  # propagate so train.py logs the clean stop message
 
     finally:
         if use_rich:
             progress.stop()
 
-    # Final checkpoint
+    # Final checkpoint (only reached when training completes normally)
     _save_checkpoint(model, optimizer, step, step_loss, ckpt_dir, model_cfg, train_cfg)
     print(f"[trainer] Training complete at step {step}. Final checkpoint saved.")
 
