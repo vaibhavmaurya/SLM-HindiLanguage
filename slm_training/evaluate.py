@@ -27,6 +27,9 @@ SRC_DIR = SLM_TRAINING_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+# datasets must initialise before PyTorch/CUDA on Windows — import early
+import datasets as _datasets_preload  # noqa: F401
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -276,30 +279,26 @@ def main():
     log(f"  Report          : {report_path}")
 
 
-@torch.no_grad()
 def _compute_ppl_verbose(model, loader, device, dtype, max_batches, label=""):
     import torch
-    import math
     model.eval()
     total_loss = 0.0
     n = 0
-    for i, batch in enumerate(loader):
-        if i >= max_batches:
-            break
-        input_ids = batch["input_ids"].to(device)
-        with torch.amp.autocast(device_type=device.type, dtype=dtype):
-            _, loss = model(input_ids, labels=input_ids.clone())
-        total_loss += loss.item()
-        n += 1
-        if n % 25 == 0:
-            running_ppl = math.exp(total_loss / n)
-            print(f"[evaluate]   {label} batch {n} / {max_batches} — ppl={running_ppl:.2f}", flush=True)
+    with torch.no_grad():
+        for i, batch in enumerate(loader):
+            if i >= max_batches:
+                break
+            input_ids = batch["input_ids"].to(device)
+            with torch.amp.autocast(device_type=device.type, dtype=dtype):
+                _, loss = model(input_ids, labels=input_ids.clone())
+            total_loss += loss.item()
+            n += 1
+            if n % 25 == 0:
+                running_ppl = math.exp(total_loss / n)
+                print(f"[evaluate]   {label} batch {n} / {max_batches} — ppl={running_ppl:.2f}", flush=True)
     model.train()
     avg = total_loss / max(n, 1)
     return math.exp(avg)
-
-
-import torch  # needed for the decorator above
 
 
 if __name__ == "__main__":

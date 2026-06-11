@@ -93,19 +93,14 @@ class GroupedQueryAttention(nn.Module):
         cos, sin = self.rotary(q, T)
         q, k = apply_rotary_emb(q, k, cos, sin)
 
-        # Expand KV heads to match Q heads (GQA)
-        if self.n_kv != self.n_heads:
-            repeat = self.n_heads // self.n_kv
-            k = k.repeat_interleave(repeat, dim=1)
-            v = v.repeat_interleave(repeat, dim=1)
-
-        # Scaled dot-product attention (uses Flash Attention if available)
-        # dropout_p is only applied during training; zero at inference
+        # Native GQA: SDPA handles head broadcasting internally (PyTorch 2.5+).
+        # Avoids repeat_interleave which allocates 4× copies of k/v per layer.
         out = F.scaled_dot_product_attention(
             q, k, v,
             attn_mask=attn_mask,
             is_causal=(attn_mask is None),
             dropout_p=self.attn_dropout if self.training else 0.0,
+            enable_gqa=True,
         )
 
         out = out.transpose(1, 2).contiguous().view(B, T, self.n_heads * self.head_dim)

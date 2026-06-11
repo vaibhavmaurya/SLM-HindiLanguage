@@ -77,6 +77,8 @@ def main():
     parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16"])
     parser.add_argument("--num-workers", type=int, default=0,
                         help="DataLoader workers (0 = main process only, no subprocesses).")
+    parser.add_argument("--pack-factor", type=int, default=1,
+                        help="Concatenate N consecutive sequences (e.g. 2 turns 512-token data into 1024).")
     parser.add_argument("--log-every", type=int, default=50)
     parser.add_argument("--eval-every", type=int, default=500)
     parser.add_argument("--save-every", type=int, default=1000)
@@ -107,7 +109,7 @@ def main():
         split_path = tokenized_dir / split
         if not split_path.exists():
             log(f"ERROR: '{split}' split not found: {split_path}")
-            log(f"       Run tokenize.py first.")
+            log(f"       Run run_tokenize.py first.")
             raise SystemExit(1)
         log(f"  {split:5s} split : {split_path}  OK")
 
@@ -188,12 +190,14 @@ def main():
         tokenized_dir / "train",
         batch_size=args.batch,
         shuffle=True,
+        pack_factor=args.pack_factor,
     )
     log("  Building val DataLoader (shuffle=False) ...")
     val_loader = make_dataloader(
         tokenized_dir / "val",
         batch_size=args.batch,
         shuffle=False,
+        pack_factor=args.pack_factor,
     )
     eff_batch = args.batch * args.grad_accum
     tokens_per_step = eff_batch * model_cfg.max_seq_len

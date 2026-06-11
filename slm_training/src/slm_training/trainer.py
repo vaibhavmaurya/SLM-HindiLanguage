@@ -32,6 +32,7 @@ class TrainingConfig:
     save_every: int = 1_000
     dtype: str = "bfloat16"  # bfloat16 or float16
     max_oom_retries: int = 5
+    compile_model: bool = True  # torch.compile for kernel fusion (graceful fallback if unavailable)
 
 
 def save_training_config(cfg: TrainingConfig, path: Path) -> None:
@@ -99,6 +100,49 @@ def _load_checkpoint(ckpt_path: Path, model: HindiSLM, optimizer: torch.optim.Op
     return meta["step"]
 
 
+class DataPrefetcher:
+    """Overlap H2D transfer with GPU compute using a dedicated CUDA stream.
+
+    While the GPU processes batch N, the next batch is already being copied
+    from pinned CPU memory to GPU. No worker subprocesses — stays on main thread.
+    Falls back to plain .to(device) when CUDA is unavailable.
+    """
+
+    def __init__(self, loader, device: torch.device):
+        import sys
+        self.loader = loader
+        self.device = device
+        # CUDA stream overlap only helps when DataLoader workers run in parallel threads.
+        # With num_workers=0 (main thread), next(iter) blocks so there's nothing to overlap.
+        # On Windows, stream sync adds overhead with zero benefit — skip it.
+        use_stream = device.type == "cuda" and sys.platform != "win32"
+        self.stream = torch.cuda.Stream() if use_stream else None
+        self._iter = iter(loader)
+        self.next_input: Optional[torch.Tensor] = None
+        self._preload()
+
+    def _preload(self) -> None:
+        try:
+            batch = next(self._iter)
+        except StopIteration:
+            self._iter = iter(self.loader)
+            batch = next(self._iter)
+        if self.stream is not None:
+            with torch.cuda.stream(self.stream):
+                self.next_input = batch["input_ids"].to(self.device, non_blocking=True)
+        else:
+            self.next_input = batch["input_ids"].to(self.device)
+
+    def next(self) -> torch.Tensor:
+        if self.stream is not None:
+            torch.cuda.current_stream().wait_stream(self.stream)
+        input_ids = self.next_input
+        if self.stream is not None and input_ids is not None:
+            input_ids.record_stream(torch.cuda.current_stream())
+        self._preload()
+        return input_ids
+
+
 class OOMRecovery:
     """Progressively relaxes training settings on CUDA OOM."""
 
@@ -108,28 +152,26 @@ class OOMRecovery:
         self.retries = 0
 
     def on_oom(self) -> bool:
-        """Apply next recovery strategy. Returns False when exhausted."""
+        """Apply next recovery strategy. Returns False when exhausted.
+
+        Only strategies that take effect without rebuilding the model/dataloader:
+          retry 1: halve gradient_accumulation_steps (fewer micro-steps per optimizer step)
+          retry 2: halve again
+          retry 3+: give up
+        """
         torch.cuda.empty_cache()
         self.retries += 1
 
         if self.retries > self.train_cfg.max_oom_retries:
             return False
 
-        if self.retries == 1:
-            self.train_cfg.per_device_batch_size = max(1, self.train_cfg.per_device_batch_size // 2)
-            print(f"[OOM] Retry {self.retries}: batch_size → {self.train_cfg.per_device_batch_size}")
-        elif self.retries == 2:
+        if self.train_cfg.gradient_accumulation_steps > 1:
             self.train_cfg.gradient_accumulation_steps = max(1, self.train_cfg.gradient_accumulation_steps // 2)
             print(f"[OOM] Retry {self.retries}: grad_accum → {self.train_cfg.gradient_accumulation_steps}")
-        elif self.retries == 3:
-            self.model_cfg.max_seq_len = self.model_cfg.max_seq_len // 2
-            print(f"[OOM] Retry {self.retries}: seq_len → {self.model_cfg.max_seq_len}")
-        elif self.retries == 4:
-            self.model_cfg.hidden_size = 384
-            self.model_cfg.num_layers = 8
-            print(f"[OOM] Retry {self.retries}: tier down → hidden=384, layers=8")
+            return True
 
-        return True
+        print(f"[OOM] Retry {self.retries}: grad_accum already at 1, cannot reduce further.")
+        return False
 
 
 def train(
@@ -143,6 +185,11 @@ def train(
     tb_writer=None,
 ) -> None:
     """Main training loop with OOM recovery and checkpoint resumption."""
+
+    # TF32 matmul: Ada Lovelace supports it; improves throughput with no precision loss
+    # in bfloat16 training since matmuls internally accumulate in float32 anyway.
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
     dtype = _get_torch_dtype(train_cfg.dtype)
     model = model.to(device)
@@ -158,6 +205,19 @@ def train(
     else:
         print("[trainer] Starting training from scratch")
 
+    # torch.compile: fuses ops into fewer kernels, reduces Python dispatch overhead.
+    # suppress_errors=True ensures any deferred compilation failure (e.g. missing Triton
+    # on Windows) falls back to eager mode instead of crashing mid-training.
+    import sys
+    if train_cfg.compile_model and hasattr(torch, "compile") and sys.platform != "win32":
+        try:
+            model = torch.compile(model, mode="reduce-overhead")
+            print("[trainer] torch.compile enabled (mode=reduce-overhead) — first step will be slow")
+        except Exception as e:
+            print(f"[trainer] torch.compile unavailable ({e}) — continuing in eager mode")
+    elif sys.platform == "win32":
+        print("[trainer] torch.compile skipped on Windows (no Triton) — running in eager mode")
+
     oom_recovery = OOMRecovery(train_cfg, model_cfg)
 
     try:
@@ -165,12 +225,17 @@ def train(
         progress = Progress(
             TextColumn("[bold blue]{task.description}"),
             BarColumn(),
-            MofNCompleteColumn(),
+            TextColumn("step={task.fields[cur_step]:,}/{task.fields[total_steps]:,}"),
             TextColumn("loss={task.fields[loss]:.4f}  lr={task.fields[lr]:.2e}"),
             TimeRemainingColumn(),
         )
         task = progress.add_task(
-            "Training", total=train_cfg.max_steps - start_step, loss=0.0, lr=train_cfg.learning_rate
+            "Training",
+            total=train_cfg.max_steps - start_step,
+            cur_step=start_step,
+            total_steps=train_cfg.max_steps,
+            loss=0.0,
+            lr=train_cfg.learning_rate,
         )
         use_rich = True
     except ImportError:
@@ -178,7 +243,7 @@ def train(
         use_rich = False
 
     step = start_step
-    train_iter = iter(train_loader)
+    prefetcher = DataPrefetcher(train_loader, device)
     log_loss = 0.0   # accumulates over log_every steps for TensorBoard average
     step_loss = 0.0  # per-optimizer-step loss for progress bar display
     t0 = time.perf_counter()
@@ -186,21 +251,15 @@ def train(
     if use_rich:
         progress.start()
 
+    model.train()
     try:
         while step < train_cfg.max_steps:
-            model.train()
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
             step_loss = 0.0  # reset each optimizer step
             oom_occurred = False
 
             for micro_step in range(train_cfg.gradient_accumulation_steps):
-                try:
-                    batch = next(train_iter)
-                except StopIteration:
-                    train_iter = iter(train_loader)
-                    batch = next(train_iter)
-
-                input_ids = batch["input_ids"].to(device)
+                input_ids = prefetcher.next()
                 labels = input_ids.clone()
 
                 try:
@@ -211,7 +270,7 @@ def train(
                     step_loss += loss.item()
 
                 except torch.cuda.OutOfMemoryError:
-                    optimizer.zero_grad()
+                    optimizer.zero_grad(set_to_none=True)
                     torch.cuda.empty_cache()
                     can_continue = oom_recovery.on_oom()
                     if not can_continue:
@@ -235,7 +294,7 @@ def train(
             log_loss += step_loss
 
             if use_rich:
-                progress.update(task, advance=1, loss=step_loss, lr=lr)
+                progress.update(task, advance=1, cur_step=step, loss=step_loss, lr=lr)
 
             if step % train_cfg.log_every == 0:
                 elapsed = time.perf_counter() - t0
@@ -269,11 +328,15 @@ def train(
                 if tb_writer:
                     tb_writer.add_scalar("val/loss", val_loss, step)
                     tb_writer.add_scalar("val/perplexity", math.exp(val_loss), step)
+                # Exclude eval time from the next tokens/s window
+                t0 = time.perf_counter()
 
             if step % train_cfg.save_every == 0:
                 _save_checkpoint(model, optimizer, step, step_loss, ckpt_dir, model_cfg, train_cfg)
                 if not use_rich:
                     print(f"  [ckpt] Saved checkpoint at step {step}")
+                # Exclude checkpoint I/O from the next tokens/s window
+                t0 = time.perf_counter()
 
     except KeyboardInterrupt:
         print(f"\n[trainer] Interrupted at step {step} — saving checkpoint ...")

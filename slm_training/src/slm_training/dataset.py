@@ -247,9 +247,38 @@ def _build_manifest(train_n, val_n, test_n, seq_len, tokenized_dir) -> dict:
     }
 
 
+# ---------- Sequence packing ----------
+
+class _PackedDataset:
+    """Concatenate adjacent sequences to fill a longer context window.
+
+    pack_factor=2 turns 512-token sequences into 1024-token sequences,
+    matching the MEDIUM model's max_seq_len without re-tokenizing.
+    Cross-document attention at boundaries is negligible — EOS tokens
+    act as natural separators and the model learns to treat them as such.
+    """
+
+    def __init__(self, hf_dataset, pack_factor: int = 2):
+        import torch as _torch
+        self._ds = hf_dataset
+        self._factor = pack_factor
+        self._torch = _torch
+        # Drop the tail so every packed sequence is complete
+        self._n = len(hf_dataset) // pack_factor
+
+    def __len__(self) -> int:
+        return self._n
+
+    def __getitem__(self, idx: int) -> dict:
+        start = idx * self._factor
+        chunks = [self._ds[start + i]["input_ids"] for i in range(self._factor)]
+        return {"input_ids": self._torch.cat(chunks, dim=0)}
+
+
 # ---------- DataLoader helper ----------
 
-def make_dataloader(dataset_path: Path, batch_size: int = 2, shuffle: bool = True):
+def make_dataloader(dataset_path: Path, batch_size: int = 2, shuffle: bool = True,
+                    pack_factor: int = 1):
     """Return a PyTorch DataLoader for a tokenized split directory.
 
     Supports both the new per-file structure (part_NNNN/ subdirs) and the old
@@ -277,6 +306,23 @@ def make_dataloader(dataset_path: Path, batch_size: int = 2, shuffle: bool = Tru
         )
 
     ds.set_format("torch", columns=["input_ids"])
+
+    if pack_factor > 1:
+        from torch.utils.data import DataLoader as _DL
+        packed = _PackedDataset(ds, pack_factor=pack_factor)
+        seq_len = packed[0]["input_ids"].shape[0]
+        print(
+            f"[dataloader] packing ×{pack_factor} → {len(packed):,} sequences of {seq_len} tokens",
+            flush=True,
+        )
+        return _DL(
+            packed,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=0,
+            pin_memory=torch.cuda.is_available(),
+            drop_last=True,
+        )
 
     return DataLoader(
         ds,
